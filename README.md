@@ -41,6 +41,7 @@ you're too hot.
 | Space | Hold to load, release to ollie | | Release to pop off |
 | J / K / L / I | | Method / indy / stalefish / japan. Hold to tweak, switch keys to combo — **let go before you land** | |
 | R / C / V | Restart / photo cam / retro pixels | | |
+| G | Switch stance (start screen): goofy is default | | |
 
 ## How getting hurt works
 

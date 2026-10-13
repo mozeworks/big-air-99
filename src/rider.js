@@ -190,6 +190,10 @@ function solveIK(a, target, l1, l2, poleDir, outJoint, outEnd) {
 export class Rider {
     constructor() {
         this.root = new THREE.Group();
+        // Everything hangs off `rig` so the whole rider can be mirrored for
+        // a goofy stance (right foot forward) without touching the poses.
+        this.rig = new THREE.Group();
+        this.root.add(this.rig);
         this.pose = clonePose(POSES.ride);
 
         // Board + bindings + boots: rigid group that the pose moves around.
@@ -211,7 +215,7 @@ export class Rider {
             binding.rotation.y = boot.rotation.y = z < 0 ? -0.25 : 0.2;
             this.board.add(binding, boot);
         }
-        this.root.add(this.board);
+        this.rig.add(this.board);
 
         const pants = COLORS.pants, jacket = COLORS.jacket;
         this.parts = {
@@ -220,11 +224,11 @@ export class Rider {
             lUpper: limbMesh(0.065, 0.058, jacket), lFore: limbMesh(0.058, 0.05, jacket),
             rUpper: limbMesh(0.065, 0.058, jacket), rFore: limbMesh(0.058, 0.05, jacket),
         };
-        for (const k in this.parts) this.root.add(this.parts[k]);
+        for (const k in this.parts) this.rig.add(this.parts[k]);
 
         this.lGlove = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.1, 0.09), mat(COLORS.glove));
         this.rGlove = this.lGlove.clone();
-        this.root.add(this.lGlove, this.rGlove);
+        this.rig.add(this.lGlove, this.rGlove);
 
         // Torso group oriented by the torso frame.
         this.torso = new THREE.Group();
@@ -235,7 +239,7 @@ export class Rider {
         const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.34), mat(pants));
         pelvis.position.y = -0.02;
         this.torso.add(chest, panel, pelvis);
-        this.root.add(this.torso);
+        this.rig.add(this.torso);
 
         this.head = new THREE.Group();
         const skull = new THREE.Mesh(new THREE.IcosahedronGeometry(0.115, 0), mat(COLORS.skin));
@@ -246,9 +250,10 @@ export class Rider {
         const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.122, 0.122, 0.035, 8), mat(0x111111));
         strap.position.y = 0.01;
         this.head.add(skull, beanie, strap, goggles);
-        this.root.add(this.head);
+        this.rig.add(this.head);
 
-        for (const o of this.root.children) o.traverse(m => { m.castShadow = false; });
+        for (const o of this.rig.children) o.traverse(m => { m.castShadow = false; });
+        this.goofy = false;
 
         // Scratch vectors.
         this._v = Array.from({ length: 16 }, () => new THREE.Vector3());
@@ -256,6 +261,11 @@ export class Rider {
         this._e = new THREE.Euler();
         this._m = new THREE.Matrix4();
         this.flail = 0;
+    }
+
+    setGoofy(goofy) {
+        this.goofy = goofy;
+        this.rig.scale.x = goofy ? -1 : 1;
     }
 
     // Blend toward a target pose; rate is 1/seconds.

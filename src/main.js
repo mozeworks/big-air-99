@@ -43,6 +43,7 @@ else game();
 // ?pose=methodTweak  — turntable for tuning the rig. ?pose=method animates.
 function poseViewer(name) {
     const rider = new Rider();
+    rider.setGoofy(params.has('goofy'));
     scene.add(rider.root);
     const grid = new THREE.GridHelper(4, 8, 0x5577aa, 0x99aacc);
     scene.add(grid);
@@ -102,7 +103,8 @@ function game() {
                     const apex = p.pos.clone().addScaledVector(v, tApex);
                     const hv = Math.hypot(v.x, v.z) || 1;
                     const right = new THREE.Vector3(-v.z / hv, 0, v.x / hv);
-                    const side = p.switchStance ? -1 : 1;
+                    // Stand on the side the rider faces, to shoot their front.
+                    const side = (p.switchStance !== p.rider.goofy) ? -1 : 1;
                     const cp = apex.clone().addScaledVector(right, 11 * side).addScaledVector(v, 0.25 / hv * 6);
                     cp.y = Math.max(heightAt(cp.x, cp.z) + 1.6, p.takeoff.y - 3.5);
                     cam.photoPos.copy(cp);
@@ -151,6 +153,18 @@ function game() {
     const player = new Player(scene, course, body, events);
     window.__game = { player, body, cam, course };
 
+    // Stance: goofy (right foot forward) unless the rider has switched.
+    let goofy = params.get('stance') !== 'regular';
+    try { if (!params.has('stance') && localStorage.getItem('snowboard.stance') === 'regular') goofy = false; } catch { }
+    player.rider.setGoofy(goofy);
+    function setStance(g) {
+        goofy = g;
+        player.rider.setGoofy(g);
+        try { localStorage.setItem('snowboard.stance', g ? 'goofy' : 'regular'); } catch { }
+        showTitle();
+        toast(g ? 'Goofy — right foot forward' : 'Regular — left foot forward');
+    }
+
     // -------------------------------------------------------- input
     const input = { left: false, right: false, up: false, down: false, jump: false, method: false, indy: false, stalefish: false, japan: false };
     const KEYS = {
@@ -163,6 +177,7 @@ function game() {
         if (KEYS[e.code]) { input[KEYS[e.code]] = true; e.preventDefault(); }
         if (e.repeat) return;
         if (e.code === 'KeyR') restart();
+        if (e.code === 'KeyG' && player.state === 'ready' && !panelOpen()) setStance(!goofy);
         if (e.code === 'KeyC') { cam.cinematic = !cam.cinematic; toast(`Photo cam ${cam.cinematic ? 'ON' : 'OFF'}`); }
         if (e.code === 'KeyV') { retro = !retro; applyResolution(); toast(retro ? 'Retro pixels ON' : 'Retro pixels OFF'); }
         if (e.code === 'Enter' && panelOpen()) {
@@ -206,9 +221,8 @@ function game() {
 
     function showTitle() {
         $('title').classList.add('show');
-        $('title-body').innerHTML = body.injuries.length
-            ? `<p>Riding hurt:</p>${injuryList(body.injuries)}`
-            : '';
+        $('title-body').innerHTML = `<p class="stance">Stance: <b>${goofy ? 'GOOFY' : 'REGULAR'}</b> (${goofy ? 'right' : 'left'} foot forward) — <b>G</b> to switch</p>`
+            + (body.injuries.length ? `<p>Riding hurt:</p>${injuryList(body.injuries)}` : '');
     }
 
     function showCrashReport(result) {
