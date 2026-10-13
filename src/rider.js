@@ -59,15 +59,16 @@ export const POSES = {
         lHand: [0, 0.7, -0.2], rHand: [-0.05, 1.6, 0.6],
         lGrab: 1, grabPt: [-0.13, 0.04, -0.08], knee: [1, -0.2, 0],
     },
-    // Full Chris Roach: back arched hard with the pelvis thrust out, both
-    // legs folded tight, board yanked up behind and rolled past vertical,
-    // torso twisted so he's looking back at the tail, free arm to the sky.
-    // Solved so the grab hand really reaches the heel edge.
+    // Full Chris Roach, laid out: back arched with the pelvis thrust out,
+    // front knee at 90°, back leg sprawled long, grab arm straight and locked
+    // on the heel edge just in front of the front foot, free arm stretched
+    // straight out past the head, torso twisted back toward the tail.
+    // Solved with real IK so both knees bend forward like knees do.
     methodTweak: {
-        hip: [0.16, 0.86, 0], torso: [-0.25, 0, 0.6], twist: -0.7, head: [0.15, -0.9, -0.3],
-        board: [-0.12, 1.08, 0.21], boardRot: [0.48, -0.04, -2.05],
-        lHand: [0, 0.7, -0.2], rHand: [-0.34, 1.75, 0.12],
-        lGrab: 1, grabPt: [-0.13, 0.04, -0.06], knee: [1, -0.7, 0],
+        hip: [0.16, 0.86, 0], torso: [0, 0, 0.6], twist: 0, head: [0.15, -0.9, -0.3],
+        board: [-0.57, 0.72, -0.14], boardRot: [1.69, 0, -1.13],
+        lHand: [0, 0.7, -0.2], rHand: [-0.5, 1.65, 0.2],
+        lGrab: 1, grabPt: [-0.13, 0.04, -0.38], knee: [1, -0.25, 0], kneeLocal: 1,
     },
     // Back hand on the toe edge between the feet, board pulled up under you.
     indyGrab: {
@@ -136,7 +137,7 @@ export const POSES = {
 };
 
 // Every pose gets every key so poses can be blended into each other.
-const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0 };
+const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0, kneeLocal: 0 };
 for (const p of Object.values(POSES)) {
     for (const [k, v] of Object.entries(POSE_DEFAULTS)) if (!(k in p)) p[k] = Array.isArray(v) ? v.slice() : v;
 }
@@ -297,7 +298,10 @@ export class Rider {
         const tq = this.torso.quaternion;
 
         // Legs: hip joints -> ankles on the bindings.
+        // Knee direction: in root space, or (kneeLocal = 1) relative to the
+        // pelvis, so knees still point over the toes when the body twists.
         pole.set(p.knee[0], p.knee[1], p.knee[2]).normalize();
+        if (p.kneeLocal > 0) pole.lerp(tmp.copy(pole).applyQuaternion(tq), p.kneeLocal).normalize();
         for (const [sideZ, thigh, shin] of [[-1, this.parts.lThigh, this.parts.lShin], [1, this.parts.rThigh, this.parts.rShin]]) {
             const j = tmp.set(0, -0.02, 0.11 * sideZ).applyQuaternion(tq).add(hip);
             foot.set(0, 0.12, STANCE * sideZ).applyMatrix4(this.board.matrix);
