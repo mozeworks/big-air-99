@@ -25,6 +25,7 @@ const CRASH_TYPES = {
 };
 
 export const HOSPITAL_DAMAGE = 40;
+const LIMBS = ['wrist', 'shoulder', 'knee', 'ankle', 'leg'];
 const STORE_KEY = 'snowboard.body.v1';
 
 function pickWeighted(weights, rand) {
@@ -106,7 +107,8 @@ export class Body {
                 fresh.push(existing);
             } else {
                 if (existing) this.injuries.splice(this.injuries.indexOf(existing), 1);
-                const inj = { part, name, dmg };
+                const side = existing?.side ?? (LIMBS.includes(part) ? (rand() < 0.5 ? 'L' : 'R') : null);
+                const inj = { part, name, dmg, side };
                 this.injuries.push(inj);
                 fresh.push(inj);
             }

@@ -72,6 +72,27 @@
     .bar { height: 12px; border: 2px solid #fff; background: #0006; }
     .bar i { display: block; height: 100%; background: #ffc931; }
     p { font-size: 13px; line-height: 1.5; margin-top: 8px; }
+
+    #panel.wide { width: min(560px, calc(100vw - 32px)); }
+    .xray-wrap { display: grid; grid-template-columns: 140px 1fr; gap: 18px; margin-top: 12px; align-items: start; }
+    @media (max-width: 480px) { .xray-wrap { grid-template-columns: 96px 1fr; gap: 12px; } }
+    .xray { width: 100%; background: radial-gradient(ellipse at 50% 40%, #1d3550, #050b14 75%); border: 2px solid #9fb7d0; border-radius: 4px; padding: 6px; }
+    .xray text { fill: #9fb7d0; font: bold 11px Verdana; }
+    .xray .bone { fill: none; stroke: #dfe9f5; stroke-width: 3; stroke-linecap: round; opacity: 0.8; }
+    .xray .bone.old { stroke: #ffaa3b; opacity: 1; }
+    .xray .bone.hurt { stroke: #ff3b30; opacity: 1; filter: drop-shadow(0 0 4px #ff3b30); animation: throb 0.9s ease-in-out infinite; }
+    .xray .bone.broken { stroke-dasharray: 6 3; stroke-width: 4; }
+    @keyframes throb { 50% { opacity: 0.45; } }
+
+    #replay { position: fixed; inset: 0; pointer-events: none; display: none; }
+    body.replaying #replay { display: block; }
+    body.replaying #hud { display: none; }
+    #replay::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, #0003 0 2px, transparent 2px 4px); }
+    #replay .rec { position: absolute; top: 18px; left: 22px; font: bold 22px 'Courier New', monospace; color: #fff; text-shadow: 2px 2px 0 #000; letter-spacing: 3px; }
+    #replay .rec::before { content: '●'; color: #ff3b30; margin-right: 8px; animation: blink 1s steps(2) infinite; }
+    #replay .skip { position: absolute; bottom: 18px; right: 22px; font: bold 13px 'Courier New', monospace; color: #fff; text-shadow: 2px 2px 0 #000; }
+    #replay .slow { position: absolute; top: 18px; right: 22px; font: bold 18px 'Courier New', monospace; color: #fff; text-shadow: 2px 2px 0 #000; }
+    @keyframes blink { 50% { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -114,6 +135,7 @@
     <p class="keys">Press <b>↑</b> to drop in</p>
 </div>
 <div id="panel"></div>
+<div id="replay"><div class="rec">REPLAY</div><div class="slow">◀◀ SLOW</div><div class="skip">ENTER skip</div></div>
 
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }

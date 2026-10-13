@@ -3,6 +3,7 @@ import { buildCourse, heightAt, normalAt, LIP_S, LIP2_S, CLIFF_S, CLIFF_X, FEATU
 import { Player } from './player.js';
 import { Body } from './injury.js';
 import { buildSky, BlobShadow, Spray } from './fx.js';
+import { xraySVG } from './xray.js';
 import { POSES, GRABS, Rider, clonePose, blendPose } from './rider.js';
 
 const params = new URLSearchParams(location.search);
@@ -127,6 +128,7 @@ function game() {
             showTrick({ name: rail.name, points: rail.points }, 'rail');
         },
         onCrash(p, type, energy) {
+            replay.crashIndex = replay.frames.length;
             spray.emit(p.pos, { x: p.vel.x * 0.4, y: 2, z: p.vel.z * 0.4 }, 160, 5, 3);
             cam.shake = 1;
             showTrick({ name: '', points: 0 }, 'crash');
@@ -134,7 +136,7 @@ function game() {
         },
         onCrashSettled(p, result) {
             runScore = 0;
-            showCrashReport(result);
+            startReplay(() => showCrashReport(result));
         },
         onFinish() {
             if (runScore > best) { best = runScore; try { localStorage.setItem('snowboard.best', String(best)); } catch { } }
@@ -180,6 +182,8 @@ function game() {
         hidePanel();
         if (body.hospitalized) { showHospital(); return; }
         player.reset();
+        replay.frames.length = 0;
+        replay.crashIndex = -1;
         runScore = 0;
         cam.mode = 'chase';
         cam.snap = true;
@@ -188,7 +192,11 @@ function game() {
 
     // -------------------------------------------------------- HUD
     function panelOpen() { return $('panel').classList.contains('show'); }
-    function showPanel(html) { $('panel').innerHTML = html; $('panel').classList.add('show'); }
+    function showPanel(html, wide = false) {
+        $('panel').innerHTML = html;
+        $('panel').classList.toggle('wide', wide);
+        $('panel').classList.add('show');
+    }
     function hidePanel() { $('panel').classList.remove('show'); }
 
     function injuryList(list) {
@@ -209,10 +217,15 @@ function game() {
         showPanel(`
             <h1 class="red">WIPEOUT</h1>
             <p class="sub">${result.label} — impact ${player.crashEnergy.toFixed(1)} m/s</p>
-            ${fresh.length ? '<h2>New</h2>' + injuryList(fresh) : '<p class="ok">Walked it off. Nothing broken.</p>'}
-            <h2>Health ${body.health}/100</h2>
-            <div class="bar"><i style="width:${body.health}%"></i></div>
-            <p class="keys"><b>ENTER</b> hike back up${body.injuries.length ? ' &nbsp; <b>H</b> rest a week' : ''}</p>`);
+            <div class="xray-wrap">
+                ${xraySVG(body.injuries, fresh)}
+                <div>
+                    ${fresh.length ? '<h2>New</h2>' + injuryList(fresh) : '<p class="ok">Walked it off. Nothing broken.</p>'}
+                    <h2>Health ${body.health}/100</h2>
+                    <div class="bar"><i style="width:${body.health}%"></i></div>
+                </div>
+            </div>
+            <p class="keys"><b>ENTER</b> hike back up${body.injuries.length ? ' &nbsp; <b>H</b> rest a week' : ''}</p>`, true);
     }
 
     function showHospital(result) {
@@ -221,9 +234,14 @@ function game() {
         showPanel(`
             <h1 class="red">AMBULANCE</h1>
             <p class="sub">${result ? result.label + '. ' : ''}You're not riding out of this one.</p>
-            ${injuryList(body.injuries)}
-            <p>Estimated recovery: <b>${weeks} weeks</b></p>
-            <p class="keys"><b>ENTER</b> do the rehab</p>`);
+            <div class="xray-wrap">
+                ${xraySVG(body.injuries, result ? result.injuries : [])}
+                <div>
+                    ${injuryList(body.injuries)}
+                    <p>Estimated recovery: <b>${weeks} weeks</b></p>
+                </div>
+            </div>
+            <p class="keys"><b>ENTER</b> do the rehab</p>`, true);
     }
 
     let trickTimer = 0;
@@ -353,6 +371,90 @@ function game() {
     }
     const wrapYaw = a => Math.atan2(Math.sin(a), Math.cos(a));
 
+    // -------------------------------------------------------- replay
+    // The last few seconds are always being recorded. After a slam, play
+    // them back in slow-mo from a camera circling the crash site.
+    const replay = { frames: [], crashIndex: -1, active: false, cursor: 0, done: null, start: 0, spin: 0 };
+    const REPLAY_SECONDS = 7, REPLAY_SPEED = 0.35;
+    const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _p = new THREE.Vector3();
+    const replayPose = clonePose(POSES.ride);
+
+    function record(time) {
+        const r = player.rider;
+        replay.frames.push({
+            t: time,
+            pos: player.pos.clone(),
+            root: r.root.position.clone(),
+            quat: r.root.quaternion.clone(),
+            pose: clonePose(r.pose),
+            flail: r.flail,
+        });
+        while (replay.frames.length && replay.frames[0].t < time - REPLAY_SECONDS) {
+            replay.frames.shift();
+            replay.crashIndex--;
+        }
+    }
+
+    function startReplay(done) {
+        const f = replay.frames;
+        if (!f.length || replay.crashIndex < 0) return done();
+        const crashT = f[Math.min(replay.crashIndex, f.length - 1)].t;
+        replay.cursor = Math.max(f[0].t, crashT - 2.2);
+        replay.end = f[f.length - 1].t;
+        replay.center = f.find(fr => fr.t >= replay.cursor).pos.clone();
+        replay.spin = Math.atan2(player.vel.x, player.vel.z) + Math.PI / 2;
+        replay.active = true;
+        replay.done = done;
+        document.body.classList.add('replaying');
+    }
+
+    function endReplay() {
+        replay.active = false;
+        replay.frames.length = 0;
+        replay.crashIndex = -1;
+        document.body.classList.remove('replaying');
+        const done = replay.done;
+        replay.done = null;
+        done?.();
+    }
+
+    function stepReplay(real) {
+        replay.cursor += real * REPLAY_SPEED;
+        if (replay.cursor >= replay.end) return endReplay();
+        const f = replay.frames;
+        let i = 0;
+        while (i < f.length - 2 && f[i + 1].t < replay.cursor) i++;
+        const a = f[i], b = f[i + 1] || a;
+        const k = b.t > a.t ? Math.min(1, Math.max(0, (replay.cursor - a.t) / (b.t - a.t))) : 0;
+        const r = player.rider;
+        r.root.position.lerpVectors(a.root, b.root, k);
+        r.root.quaternion.slerpQuaternions(a.quat, b.quat, k);
+        blendPose(replayPose, a.pose, b.pose, k);
+        r.pose = replayPose;
+        r.flail = a.flail;
+        r.update(replay.cursor);
+        _p.lerpVectors(a.pos, b.pos, k);
+
+        // Orbit the rider, drifting with them toward the crash site.
+        replay.spin += real * 0.22;
+        const c = replay.center.lerp(_p, 1 - Math.exp(-3 * real));
+        camera.position.set(c.x + Math.sin(replay.spin) * 9, 0, c.z + Math.cos(replay.spin) * 9);
+        camera.position.y = Math.max(c.y + 3, heightAt(camera.position.x, camera.position.z) + 1.6);
+        cam.look.lerp(_p.clone().setY(_p.y + 0.6), 1 - Math.exp(-8 * real));
+        camera.lookAt(cam.look);
+        camera.fov += (50 - camera.fov) * Math.min(1, real * 3);
+        camera.updateProjectionMatrix();
+        sky.position.copy(camera.position);
+        return _p;
+    }
+
+    addEventListener('keydown', e => {
+        if (replay.active && (e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape')) {
+            e.stopImmediatePropagation();
+            endReplay();
+        }
+    }, true);
+
     // -------------------------------------------------------- loop
     const clock = new THREE.Clock();
     let timeScale = 1;
@@ -363,10 +465,23 @@ function game() {
         const dt = real * timeScale;
         time += dt;
 
+        if (replay.active) {
+            const p = stepReplay(real);
+            spray.update(dt);
+            if (p) {
+                const gy = heightAt(p.x, p.z);
+                shadow.update(p.x, gy, p.z, normalAt(p.x, p.z, tmp2), Math.max(0, p.y - gy), player.yaw);
+            }
+            $('trick').classList.remove('pop');
+            renderer.render(scene, camera);
+            return;
+        }
+
         if (demo) autopilot();
         if (!panelOpen()) {
             if (player.state === 'ready' && (input.up || input.down || input.left || input.right)) $('title').classList.remove('show');
             player.update(dt, input, time);
+            if (player.state !== 'ready') record(time);
         } else if (demo && (demoWait += real) > 3) {
             demoWait = 0;
             if (body.hospitalized) body.rehab();

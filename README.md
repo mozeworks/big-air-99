@@ -15,28 +15,42 @@ Then open http://localhost:8090.
 | URL | What it does |
 |---|---|
 | `/` | Play |
-| `/?demo` | Autopilot pops the lip, holds a method, lets go before landing |
-| `/?demo=late` | Autopilot holds the grab into the landing (watch it get hurt) |
-| `/?pose=methodTweak` | Turntable of a rider pose (`ride`, `tuck`, `air`, `methodGrab`, `methodTweak`, `crash`, or `method` to animate) |
+| `/?demo` | Autopilot runs the whole course: method off the kicker, speed-checks the step-down, drops the cliff |
+| `/?demo=indy` · `stalefish` · `japan` | Same, with a different grab |
+| `/?demo=flip` / `badflip` | Backflip method / an under-rotated one (watch it get hurt) |
+| `/?demo=rail` | Takes the rail first |
+| `/?demo=chute` | Takes the chute instead of the cliff |
+| `/?demo=late` | Holds the grab into the landing |
+| `/?pose=methodTweak` | Turntable of a rider pose (`ride`, `tuck`, `air`, `flipTuck`, `slide`, `crash`, or a grab name — `method`, `indy`, `stalefish`, `japan` — to animate it) |
+
+## The course
+
+Rail (right side of the run-in) → big table-top kicker → step-down
+(**max 60 km/h**) → choose your line: **cliff** ledge on the left (**max 30
+km/h**, ~9 m rock face) or the **chute** on the right. Signs and the HUD tell
+you what's next and how fast you can hit it; your speed flashes red when
+you're too hot.
 
 ## Controls
 
-| Key | On snow | In the air |
-|---|---|---|
-| ← → | Carve | Spin |
-| ↑ | Drop in / tuck | |
-| ↓ | Brake | |
-| Space | Hold to load, release to ollie (pop it on the lip) | |
-| Shift / J | | Hold for a method, keep holding to tweak — **let go before you land** |
-| R / C / V | Restart / photo cam / retro pixels | |
+| Key | On snow | In the air | On the rail |
+|---|---|---|---|
+| ← → | Carve | Spin | Balance |
+| ↑ | Drop in / tuck | Frontflip | |
+| ↓ | Brake | Backflip | |
+| Space | Hold to load, release to ollie | | Release to pop off |
+| J / K / L / I | | Method / indy / stalefish / japan. Hold to tweak, switch keys to combo — **let go before you land** | |
+| R / C / V | Restart / photo cam / retro pixels | | |
 
 ## How getting hurt works
 
 - Every landing is scored by how hard you hit *into* the slope (m/s), whether the
   board is lined up with where you're going, and whether you're still grabbing.
 - Clean under ~10.5 m/s, heavy over 12 (legs may give out), crash over 15.5.
-  Landing sideways (>58°), still holding the grab, casing the table, or hitting
-  a tree are crashes too.
+  Landing sideways (>58°), still holding the grab, more than 65° off on a
+  flip, casing the table, losing it on the rail, riding into the rail, or
+  hitting a tree are crashes too.
+- Every slam gets a slow-mo replay, then an X-ray of what you hurt.
 - Each crash type hurts different body parts (`src/injury.js`). Injuries
   have real effects: a bad knee kills your pop, a hurt wrist slows your grab,
   a bad back limits the tweak, a concussion blurs your vision.
@@ -52,4 +66,5 @@ Then open http://localhost:8090.
 - `src/rider.js` — articulated rider; poses + two-bone IK for arms and legs.
 - `src/player.js` — physics, carving, ollie, spins, grabs, landing evaluation.
 - `src/injury.js` — injury model and persistence.
-- `src/main.js` — renderer, cameras (chase + photo cam), HUD, demo autopilot.
+- `src/xray.js` — the X-ray film.
+- `src/main.js` — renderer, cameras (chase + photo cam), HUD, replay, demo autopilot.
