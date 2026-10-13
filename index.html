@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Big Air '99</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; background: #9cc3ea; }
+    body { font-family: Verdana, Geneva, sans-serif; color: #fff; user-select: none; }
+    canvas { display: block; position: fixed; inset: 0; }
+    canvas.retro { image-rendering: pixelated; }
+
+    .shadow { text-shadow: 2px 2px 0 #000a, 0 0 6px #0006; }
+    #hud { position: fixed; inset: 0; pointer-events: none; }
+    #hud .tl { position: absolute; top: 16px; left: 18px; }
+    #hud .tr { position: absolute; top: 16px; right: 18px; text-align: right; }
+    .speed { font: italic 900 46px/1 Impact, 'Arial Black', sans-serif; letter-spacing: 1px; }
+    .speed small { font-size: 18px; margin-left: 4px; }
+    #air { font: italic 900 26px Impact, 'Arial Black', sans-serif; color: #ffe14a; min-height: 30px; }
+    #lip { font: bold 14px Verdana; color: #ff8a4a; letter-spacing: 2px; }
+    .score { font: italic 900 34px Impact, 'Arial Black', sans-serif; }
+    .best { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+    .health { margin-top: 10px; width: 210px; margin-left: auto; }
+    .health .label { font-size: 11px; letter-spacing: 2px; display: flex; justify-content: space-between; }
+    .hb { height: 10px; background: #0006; border: 2px solid #fff; margin-top: 3px; }
+    #health-bar { height: 100%; background: #4ade4a; transition: width .4s; }
+    #health-bar.mid { background: #ffc931; }
+    #health-bar.low { background: #ff3b30; }
+    #injuries { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+    #injuries span { background: #b3121fcc; font-size: 11px; padding: 2px 7px; border-radius: 2px; }
+
+    #trick { position: absolute; top: 24%; left: 0; right: 0; text-align: center; opacity: 0; transform: scale(.6) skewX(-8deg); transition: opacity .25s, transform .25s; }
+    #trick.pop { opacity: 1; transform: scale(1) skewX(-8deg); }
+    #trick .name { font: italic 900 clamp(34px, 7vw, 76px)/1 Impact, 'Arial Black', sans-serif; color: #ffe14a; -webkit-text-stroke: 2px #1b1b1b; text-transform: uppercase; text-shadow: 4px 4px 0 #e8532b; }
+    #trick .name.red { color: #ff3b30; text-shadow: 4px 4px 0 #000; }
+    #trick .pts { font: italic 900 34px Impact, sans-serif; margin-top: 6px; }
+    #trick .q { font: bold 15px Verdana; letter-spacing: 3px; margin-top: 6px; }
+    .q-clean { color: #7dff7d; } .q-sketchy { color: #ffc931; } .q-heavy { color: #ff8a4a; }
+    #slowmo { position: absolute; bottom: 70px; left: 0; right: 0; text-align: center; font: italic 900 18px Impact, sans-serif; letter-spacing: 6px; opacity: 0; transition: opacity .2s; color: #bfe3ff; }
+    #slowmo.show { opacity: 0.9; }
+
+    #toast { position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%); background: #000b; padding: 8px 16px; font-size: 14px; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+    #toast.show { opacity: 1; }
+    #toast.bad { background: #b3121fdd; }
+
+    .help { position: absolute; bottom: 14px; left: 18px; right: 18px; font-size: 11px; opacity: 0.85; line-height: 1.6; }
+    .help b { background: #fff2; padding: 0 5px; border-radius: 2px; }
+
+    #title, #panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #0d1b33e6; border: 3px solid #fff; padding: 26px 32px; width: min(460px, calc(100vw - 32px)); display: none; box-shadow: 8px 8px 0 #0005; }
+    #title.show, #panel.show { display: block; }
+    #title { pointer-events: none; }
+    h1 { font: italic 900 46px/1 Impact, 'Arial Black', sans-serif; color: #ffe14a; text-shadow: 3px 3px 0 #e8532b; letter-spacing: 1px; }
+    h1.red { color: #ff3b30; text-shadow: 3px 3px 0 #000; }
+    h2 { font-size: 12px; letter-spacing: 3px; margin: 16px 0 6px; opacity: .8; }
+    .sub { margin-top: 8px; opacity: .85; font-size: 13px; }
+    .big { font: italic 900 40px Impact, sans-serif; margin: 12px 0 4px; }
+    .keys { margin-top: 18px; font-size: 13px; }
+    .keys b, .ctl b { background: #fff; color: #0d1b33; padding: 1px 6px; border-radius: 2px; font-size: 11px; }
+    .ctl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin-top: 16px; font-size: 12px; align-items: center; }
+    .ctl b { justify-self: start; }
+    .inj { list-style: none; margin-top: 6px; }
+    .inj li { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #fff2; font-size: 13px; }
+    .inj b { color: #ff6b5e; }
+    .ok { color: #7dff7d; font-size: 13px; margin-top: 8px; }
+    .bar { height: 12px; border: 2px solid #fff; background: #0006; }
+    .bar i { display: block; height: 100%; background: #ffc931; }
+    p { font-size: 13px; line-height: 1.5; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="hud" class="shadow">
+    <div class="tl">
+        <div class="speed"><span id="speed">0</span><small>KM/H</small></div>
+        <div id="air"></div>
+        <div id="lip"></div>
+    </div>
+    <div class="tr">
+        <div class="score" id="score">0</div>
+        <div class="best">BEST <span id="best">0</span></div>
+        <div class="health">
+            <div class="label"><span>BODY</span><span id="health-num">100</span></div>
+            <div class="hb"><div id="health-bar"></div></div>
+            <div id="injuries"></div>
+        </div>
+    </div>
+    <div id="trick"></div>
+    <div id="slowmo">SLOW-MO</div>
+    <div id="toast"></div>
+    <div class="help">
+        <b>←→</b> carve / spin &nbsp; <b>↑</b> tuck &nbsp; <b>↓</b> brake &nbsp; <b>SPACE</b> hold + release to ollie &nbsp;
+        <b>SHIFT</b> hold for method — let go before you land &nbsp; <b>R</b> restart &nbsp; <b>C</b> photo cam &nbsp; <b>V</b> pixels
+    </div>
+</div>
+
+<div id="title" class="show">
+    <h1>BIG AIR '99</h1>
+    <p class="sub">One kicker. Go big, stomp it. Crashes leave marks.</p>
+    <div class="ctl">
+        <b>↑</b><span>Drop in / tuck for speed</span>
+        <b>← →</b><span>Carve on snow, spin in the air</span>
+        <b>SPACE</b><span>Hold to load, release on the lip to ollie</span>
+        <b>SHIFT</b><span>Hold to grab a method, keep holding to tweak</span>
+        <b>↓</b><span>Brake (scrub speed if you're coming in too hot)</span>
+    </div>
+    <div id="title-body"></div>
+    <p class="keys">Press <b>↑</b> to drop in</p>
+</div>
+<div id="panel"></div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
