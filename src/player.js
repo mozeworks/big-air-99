@@ -23,6 +23,7 @@ const DEG = Math.PI / 180;
 
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 const X_AXIS = new THREE.Vector3(1, 0, 0);
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const GRAB_KEYS = ['method', 'indy', 'stalefish', 'japan'];
 const GRAB_NAMES = { method: 'Method', indy: 'Indy', stalefish: 'Stalefish', japan: 'Japan' };
 const freshGrab = () => ({ held: false, type: null, time: 0, hold: 0, maxTweak: 0, used: false, done: [] });
@@ -73,6 +74,7 @@ export class Player {
         this.lastLanding = null;
         this.rail = null;
         this.railCooldown = 0;
+        this.layout = 0;
         this.rider.flail = 0;
         this.rider.pose = clonePose(POSES.ride);
         this.rider.root.quaternion.identity();
@@ -526,13 +528,18 @@ export class Player {
             const f = this.forward(this._a);
             const along = (f.x * this.vel.x + f.z * this.vel.z) / hv;
             const pitch = Math.atan2(this.vel.y, hv) * 0.7 * along;
+            // A fully tweaked method lays the whole body out sideways, back
+            // toward the heel side, board heading overhead.
+            const g = this.grab;
+            const layoutTarget = g.held && g.type === 'method' ? this.tweakAmount(eff) * 0.55 : 0;
+            this.layout = (this.layout || 0) + (layoutTarget - (this.layout || 0)) * Math.min(1, 6 * dt);
             root.quaternion.copy(yawQ)
                 .multiply(this._q2.setFromAxisAngle(X_AXIS, this.flip))
                 .multiply(this._q2.setFromAxisAngle(X_AXIS, pitch))
-                .multiply(this._q2.setFromAxisAngle(UP, flip));
+                .multiply(this._q2.setFromAxisAngle(UP, flip))
+                .multiply(this._q2.setFromAxisAngle(Z_AXIS, this.layout * (rider.goofy ? -1 : 1)));
             root.position.copy(this.pos);
 
-            const g = this.grab;
             if (g.held) {
                 const [from, to] = GRABS[g.type];
                 blendPose(target, POSES[from], POSES[to], this.tweakAmount(eff));

@@ -59,13 +59,15 @@ export const POSES = {
         lHand: [0, 0.7, -0.2], rHand: [-0.05, 1.6, 0.6],
         lGrab: 1, grabPt: [-0.13, 0.04, -0.08], knee: [1, -0.2, 0],
     },
-    // Full Chris Roach: board yanked up behind the butt and rolled past
-    // vertical so the base faces the sky, back arched, free arm way up.
+    // Full Chris Roach: back arched hard with the pelvis thrust out, both
+    // legs folded tight, board yanked up behind and rolled past vertical,
+    // torso twisted so he's looking back at the tail, free arm to the sky.
+    // Solved so the grab hand really reaches the heel edge.
     methodTweak: {
-        hip: [0.16, 0.86, 0], torso: [0.05, 0.2, 0.45], head: [0.1, 0.8, -0.7],
-        board: [-0.36, 0.98, 0.02], boardRot: [0.18, 0.1, -1.62],
-        lHand: [0, 0.7, -0.2], rHand: [-0.3, 1.85, 0.5],
-        lGrab: 1, grabPt: [-0.13, 0.04, -0.06], knee: [0.6, -1, 0.05],
+        hip: [0.16, 0.86, 0], torso: [-0.25, 0, 0.6], twist: -0.7, head: [0.15, -0.9, -0.3],
+        board: [-0.12, 1.08, 0.21], boardRot: [0.48, -0.04, -2.05],
+        lHand: [0, 0.7, -0.2], rHand: [-0.34, 1.75, 0.12],
+        lGrab: 1, grabPt: [-0.13, 0.04, -0.06], knee: [1, -0.7, 0],
     },
     // Back hand on the toe edge between the feet, board pulled up under you.
     indyGrab: {
@@ -134,7 +136,7 @@ export const POSES = {
 };
 
 // Every pose gets every key so poses can be blended into each other.
-const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05] };
+const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0 };
 for (const p of Object.values(POSES)) {
     for (const [k, v] of Object.entries(POSE_DEFAULTS)) if (!(k in p)) p[k] = Array.isArray(v) ? v.slice() : v;
 }
@@ -290,6 +292,8 @@ export class Rider {
         this._e.set(p.torso[0], p.torso[1], p.torso[2], 'YZX');
         this.torso.position.copy(hip);
         this.torso.quaternion.setFromEuler(this._e);
+        // Twist the shoulders around the spine itself (not the world vertical).
+        if (p.twist) this.torso.quaternion.multiply(this._q.setFromAxisAngle(UP, p.twist));
         const tq = this.torso.quaternion;
 
         // Legs: hip joints -> ankles on the bindings.
