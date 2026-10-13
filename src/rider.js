@@ -67,12 +67,81 @@ export const POSES = {
         lHand: [0, 0.7, -0.2], rHand: [-0.3, 1.85, 0.5],
         lGrab: 1, grabPt: [-0.13, 0.04, -0.06], knee: [0.6, -1, 0.05],
     },
+    // Back hand on the toe edge between the feet, board pulled up under you.
+    indyGrab: {
+        hip: [0.02, 0.86, 0], torso: [0, 0.1, -0.38], head: [0, 0.6, -0.5],
+        board: [0.02, 0.5, 0], boardRot: [0, 0, 0.18],
+        lHand: [0.25, 1.35, -0.75], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.05], knee: [1, 0.4, 0],
+    },
+    // Tweaked indy: nose poked out, back leg boned, board pulled to the chest.
+    indyTweak: {
+        hip: [-0.02, 0.86, 0.04], torso: [0, -0.05, -0.5], head: [0, 0.55, -0.6],
+        board: [0.1, 0.72, -0.08], boardRot: [0.5, 0.18, 0.4],
+        lHand: [0.1, 1.6, -0.9], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.08], knee: [1, 0.8, 0],
+    },
+    // Back hand reaches behind the back leg to the heel edge.
+    stalefishGrab: {
+        hip: [0.06, 0.84, 0], torso: [0, -0.35, 0.1], head: [0, 1.0, -0.4],
+        board: [-0.16, 0.5, 0], boardRot: [0, 0, -0.5],
+        lHand: [0.3, 1.4, -0.7], rHand: [-0.2, 0.7, 0.3],
+        rGrab: 1, rGrabPt: [-0.13, 0.04, 0.1], knee: [1, -0.1, 0],
+    },
+    stalefishTweak: {
+        hip: [0.1, 0.86, -0.02], torso: [0.1, -0.5, 0.25], head: [0, 1.1, -0.35],
+        board: [-0.32, 0.8, 0.06], boardRot: [-0.35, -0.1, -1.1],
+        lHand: [0.45, 1.6, -0.8], rHand: [-0.2, 0.7, 0.3],
+        rGrab: 1, rGrabPt: [-0.13, 0.04, 0.12], knee: [0.7, -0.8, 0],
+    },
+    // Front hand grabs the toe edge in front of the front foot, front knee
+    // driven down, and the board yanked up behind your back, nose high.
+    japanGrab: {
+        hip: [0.06, 0.84, 0], torso: [0, 0.4, -0.3], head: [0, 0.8, -0.5],
+        board: [-0.1, 0.5, 0], boardRot: [0.35, 0, -0.3],
+        lHand: [0.3, 0.6, -0.4], rHand: [0.0, 1.5, 0.75],
+        lGrab: 1, grabPt: [0.13, 0.04, -0.38], knee: [1, -0.4, 0],
+    },
+    japanTweak: {
+        hip: [0.12, 0.84, 0], torso: [0, 0.5, -0.2], head: [0, 0.7, -0.6],
+        board: [-0.32, 0.86, 0.05], boardRot: [1.05, 0.25, -0.75],
+        lHand: [0.3, 0.6, -0.4], rHand: [-0.15, 1.85, 0.65],
+        lGrab: 1, grabPt: [0.13, 0.04, -0.36], knee: [0.8, -1, -0.2],
+    },
+    // Balled up for flips.
+    flipTuck: {
+        hip: [0.04, 0.72, 0], torso: [0, 0.2, -0.5], head: [0, 0.8, -0.4],
+        board: [0, 0.32, 0], boardRot: [0, 0, 0],
+        lHand: [0.4, 0.8, -0.3], rHand: [0.4, 0.8, 0.3],
+        knee: [1, 0.6, 0],
+    },
+    // Locked in on a rail: arms out for balance.
+    slide: {
+        hip: [0.02, 0.76, 0], torso: [0, 0.6, -0.15], head: [0, 1.1, -0.2],
+        board: [0, 0, 0], boardRot: [0, 0, 0],
+        lHand: [0.1, 1.15, -0.85], rHand: [0.1, 1.15, 0.85],
+        knee: [1, 0.35, 0],
+    },
     crash: {
         hip: [0, 0.45, 0], torso: [0, 0, 0.9], head: [0, 0, 0.6],
         board: [0, 0, 0], boardRot: [0, 0, 0],
         lHand: [-0.3, 0.9, -0.8], rHand: [-0.3, 0.9, 0.8],
         lGrab: 0, grabPt: [-0.13, 0.05, -0.1], knee: [1, 0.2, 0],
     },
+};
+
+// Every pose gets every key so poses can be blended into each other.
+const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05] };
+for (const p of Object.values(POSES)) {
+    for (const [k, v] of Object.entries(POSE_DEFAULTS)) if (!(k in p)) p[k] = Array.isArray(v) ? v.slice() : v;
+}
+
+// Grab name -> [pose when first grabbed, pose fully tweaked].
+export const GRABS = {
+    method: ['methodGrab', 'methodTweak'],
+    indy: ['indyGrab', 'indyTweak'],
+    stalefish: ['stalefishGrab', 'stalefishTweak'],
+    japan: ['japanGrab', 'japanTweak'],
 };
 
 export function clonePose(p) {
@@ -228,15 +297,15 @@ export class Rider {
 
         // Arms. Left (front) hand can be pulled onto the board's heel edge.
         const flail = this.flail;
-        for (const [sideZ, upper, fore, glove, free, grabWeight] of [
-            [-1, this.parts.lUpper, this.parts.lFore, this.lGlove, p.lHand, p.lGrab],
-            [1, this.parts.rUpper, this.parts.rFore, this.rGlove, p.rHand, 0],
+        for (const [sideZ, upper, fore, glove, free, grabWeight, grabPt] of [
+            [-1, this.parts.lUpper, this.parts.lFore, this.lGlove, p.lHand, p.lGrab, p.grabPt],
+            [1, this.parts.rUpper, this.parts.rFore, this.rGlove, p.rHand, p.rGrab, p.rGrabPt],
         ]) {
             sh.set(0, SPINE - 0.06, 0.2 * sideZ).applyQuaternion(tq).add(hip);
             tgt.set(free[0], free[1], free[2]);
             if (flail > 0) tgt.add(tmp.set(Math.sin(time * 17 + sideZ) * 0.4, Math.cos(time * 13 * sideZ) * 0.4, Math.sin(time * 11) * 0.3).multiplyScalar(flail));
             if (grabWeight > 0) {
-                grabW.set(p.grabPt[0], p.grabPt[1], p.grabPt[2]).applyMatrix4(this.board.matrix);
+                grabW.set(grabPt[0], grabPt[1], grabPt[2]).applyMatrix4(this.board.matrix);
                 tgt.lerp(grabW, grabWeight);
             }
             side.set(-0.2, -1, 0.5 * sideZ).applyQuaternion(tq);

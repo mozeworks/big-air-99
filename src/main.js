@@ -3,7 +3,7 @@ import { buildCourse, heightAt, normalAt, LIP_S } from './course.js';
 import { Player } from './player.js';
 import { Body } from './injury.js';
 import { buildSky, BlobShadow, Spray } from './fx.js';
-import { POSES, Rider, clonePose, blendPose } from './rider.js';
+import { POSES, GRABS, Rider, clonePose, blendPose } from './rider.js';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -56,9 +56,9 @@ function poseViewer(name) {
     const clock = new THREE.Clock();
     renderer.setAnimationLoop(() => {
         const t = clock.getElapsedTime();
-        if (name === 'method') {
+        if (GRABS[name]) {
             const k = (Math.sin(t * 1.2) + 1) / 2;
-            blendPose(tgt, POSES.methodGrab, POSES.methodTweak, k);
+            blendPose(tgt, POSES[GRABS[name][0]], POSES[GRABS[name][1]], k);
             rider.pose = clonePose(tgt);
         } else rider.pose = clonePose(POSES[name] || POSES.ride);
         rider.root.position.y = 0.2;
@@ -146,11 +146,12 @@ function game() {
     window.__game = { player, body, cam, course };
 
     // -------------------------------------------------------- input
-    const input = { left: false, right: false, up: false, down: false, jump: false, grab: false };
+    const input = { left: false, right: false, up: false, down: false, jump: false, method: false, indy: false, stalefish: false, japan: false };
     const KEYS = {
         ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
         ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
-        Space: 'jump', ShiftLeft: 'grab', ShiftRight: 'grab', KeyJ: 'grab',
+        Space: 'jump', ShiftLeft: 'method', ShiftRight: 'method', KeyJ: 'method',
+        KeyK: 'indy', KeyL: 'stalefish', KeyI: 'japan',
     };
     addEventListener('keydown', e => {
         if (KEYS[e.code]) { input[KEYS[e.code]] = true; e.preventDefault(); }
@@ -306,8 +307,12 @@ function game() {
     // -------------------------------------------------------- demo
     // ?demo — rides the line by itself: pops the lip, holds a method and
     // lets go before touchdown. ?demo=late holds it too long, on purpose.
+    // ?demo=indy|stalefish|japan picks the grab, ?demo=flip throws a
+    // backflip method, ?demo=badflip under-rotates one.
     const demo = params.has('demo');
-    const demoLate = params.get('demo') === 'late';
+    const demoMode = params.get('demo') || '';
+    const demoLate = demoMode === 'late';
+    const demoGrab = GRABS[demoMode] ? demoMode : 'method';
     let demoWait = 0;
     function autopilot() {
         const p = player;
@@ -322,7 +327,11 @@ function game() {
         } else if (p.state === 'air') {
             const h = p.heightAboveGround;
             const timeToGround = p.vel.y < 0 ? h / -p.vel.y : 9;
-            input.grab = p.airTime > 0.15 && (demoLate || timeToGround > 0.55);
+            input[demoGrab] = p.airTime > 0.15 && (demoLate || timeToGround > 0.55);
+            if (demoMode === 'flip' || demoMode === 'badflip') {
+                const target = demoMode === 'flip' ? Math.PI * 2 : Math.PI * 1.4;
+                input.down = p.airTime > 0.1 && p.flip < target - 0.65;
+            }
         }
     }
     const wrapYaw = a => Math.atan2(Math.sin(a), Math.cos(a));

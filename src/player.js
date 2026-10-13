@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX } from './course.js';
-import { POSES, clonePose, blendPose, Rider } from './rider.js';
+import { POSES, GRABS, clonePose, blendPose, Rider } from './rider.js';
 
 const G = 9.81;
 const MU = 0.05, MU_BRAKE = 0.5;
@@ -8,6 +8,7 @@ const DRAG = 0.0036, DRAG_TUCK = 0.0024, DRAG_BRAKE = 0.007;
 const TURN_RATE = 1.8;
 const GRIP = 8;
 const SPIN_RATE = Math.PI * 2 * 0.95;
+const FLIP_RATE = Math.PI * 2 * 0.8;
 const START_S = 10;
 const SUBSTEPS = 4;
 
@@ -21,6 +22,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 const DEG = Math.PI / 180;
 
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+const GRAB_KEYS = ['method', 'indy', 'stalefish', 'japan'];
+const GRAB_NAMES = { method: 'Method', indy: 'Indy', stalefish: 'Stalefish', japan: 'Japan' };
+const freshGrab = () => ({ held: false, type: null, time: 0, hold: 0, maxTweak: 0, used: false, done: [] });
 
 export class Player {
     constructor(scene, course, body, events) {
@@ -53,7 +58,10 @@ export class Player {
         this.airTime = 0;
         this.spin = 0;
         this.spinVel = 0;
-        this.grab = { held: false, time: 0, hold: 0, maxTweak: 0, used: false };
+        this.grab = freshGrab();
+        this.flip = 0;
+        this.flipVel = 0;
+        this.flipArmed = false;
         this.maxHeight = 0;
         this.takeoff = null;
         this.compress = 0;
@@ -180,7 +188,10 @@ export class Player {
         this.spin = 0;
         this.spinVel = 0;
         this.maxHeight = 0;
-        this.grab = { held: false, time: 0, hold: 0, maxTweak: 0, used: false };
+        this.grab = freshGrab();
+        this.flip = 0;
+        this.flipVel = 0;
+        this.flipArmed = false;
         const nearLip = this.s > LIP_S - 4 && this.s < LIP_S + 1.5;
         this.takeoff = { s: this.s, y: this.pos.y, popped, nearLip, speed: this.speed };
         if (popped) this.pos.y += 0.02;
@@ -205,18 +216,29 @@ export class Player {
         this.yaw += this.spinVel * h;
         this.spin += this.spinVel * h;
 
-        // Method grab: hold to grab, keep holding to tweak it out.
+        // Flips: up = frontflip, down = backflip. Keys held from the
+        // approach (tucking, braking) don't count until released once.
+        if (!input.up && !input.down) this.flipArmed = true;
+        const flipIn = this.flipArmed ? (input.down ? 1 : 0) - (input.up ? 1 : 0) : 0;
+        this.flipVel += (flipIn * FLIP_RATE - this.flipVel) * Math.min(1, (flipIn ? 7 : 8) * h);
+        this.flip += this.flipVel * h;
+
+        // Grabs: hold to grab, keep holding to tweak it out. Switching keys
+        // mid-air chains grabs into a combo.
         const g = this.grab;
-        if (input.grab && this.airTime > 0.08) {
+        const want = this.airTime > 0.08 ? GRAB_KEYS.find(k => input[k]) : null;
+        if (want && want !== g.type) {
+            this.endGrab();
+            g.type = want;
+        }
+        if (want) {
             g.held = true;
             g.used = true;
             g.time += h * eff.grabSpeed;
             g.hold += h;
-            const tweak = Math.min(1, Math.max(0, (g.time - 0.18) / 0.7)) * eff.tweak;
-            g.maxTweak = Math.max(g.maxTweak, tweak);
-        } else {
-            g.held = false;
-            g.time = 0;
+            g.maxTweak = Math.max(g.maxTweak, this.tweakAmount(eff));
+        } else if (g.held) {
+            this.endGrab();
         }
 
         const groundY = heightAt(this.pos.x, this.pos.z);
@@ -226,7 +248,22 @@ export class Player {
         }
     }
 
+    tweakAmount(eff) {
+        return Math.min(1, Math.max(0, (this.grab.time - 0.18) / 0.7)) * eff.tweak;
+    }
+
+    endGrab() {
+        const g = this.grab;
+        if (g.type && g.hold > 0.2) g.done.push({ type: g.type, hold: g.hold, tweak: g.maxTweak });
+        g.held = false;
+        g.type = null;
+        g.time = 0;
+        g.hold = 0;
+        g.maxTweak = 0;
+    }
+
     land() {
+        this.endGrab();
         const n = normalAt(this.pos.x, this.pos.z, this.normal);
         const v = this.vel;
         const vn = -v.dot(n);
@@ -241,20 +278,22 @@ export class Player {
         const cos = (f.x * vt.x + f.z * vt.z) / hv;
         const misalign = Math.acos(Math.min(1, Math.abs(cos)));
         const switched = cos < 0;
-        const stillGrabbing = this.rider.pose.lGrab > 0.45;
+        const stillGrabbing = Math.max(this.rider.pose.lGrab, this.rider.pose.rGrab) > 0.45;
+        const flipOff = Math.abs(wrapAngle(this.flip));
         const s = this.s;
 
         let crash = null;
-        if (stillGrabbing) crash = 'grab';
+        if (flipOff > 65 * DEG) crash = 'flip';
+        else if (stillGrabbing) crash = 'grab';
         else if (misalign > 58 * DEG) crash = 'sideways';
         else if (vn > CRASH_VN + tol) crash = 'flat';
         else if (s > LIP_S && s < KNUCKLE_S - 1 && vn > 7 + tol) crash = 'casedeck';
 
-        const info = { vn, misalign: misalign / DEG, airTime: this.airTime, height: this.maxHeight, s };
+        const info = { vn, misalign: misalign / DEG, flipOff: flipOff / DEG, airTime: this.airTime, height: this.maxHeight, s };
         this.lastLanding = info;
 
         if (crash) {
-            const energy = vn + vtSpeed * (crash === 'flat' || crash === 'grab' ? 0.1 : 0.18);
+            const energy = vn + vtSpeed * (crash === 'flat' || crash === 'grab' ? 0.1 : 0.18) + (crash === 'flip' ? 2 : 0);
             this.startCrash(crash, energy);
             return;
         }
@@ -265,7 +304,7 @@ export class Player {
             quality = 'heavy';
             // Legs took more than they could absorb.
             if (Math.random() < (vn - HEAVY_VN - tol) / 4) hurt = this.body.crash('flat', vn - 3);
-        } else if (vn > CLEAN_VN + tol || misalign > 25 * DEG) {
+        } else if (vn > CLEAN_VN + tol || misalign > 25 * DEG || flipOff > 35 * DEG) {
             quality = 'sketchy';
         }
 
@@ -278,24 +317,37 @@ export class Player {
     }
 
     scoreTrick(quality) {
-        const g = this.grab;
+        const grabs = this.grab.done;
         const spinDeg = Math.round(Math.abs(this.spin) / Math.PI) * 180;
-        if (this.airTime < 0.45 && !g.used && spinDeg < 180) return null;
+        const flips = Math.round(Math.abs(this.flip) / (Math.PI * 2));
+        if (this.airTime < 0.45 && !grabs.length && spinDeg < 180 && !flips) return null;
 
-        let name = '';
         let pts = this.airTime * 140 + this.maxHeight * 35;
-        if (spinDeg >= 180) { name += `${spinDeg} `; pts += spinDeg * 3; }
-        if (g.used) {
-            const huge = g.maxTweak > 0.8 && this.maxHeight > 8;
-            name += (huge ? 'Huge ' : '') + (g.maxTweak > 0.75 ? 'Tweaked ' : '') + 'Method';
-            pts += 400 + Math.min(g.hold, 2.5) * 450 + g.maxTweak * 900;
-        } else if (spinDeg < 180) {
-            name = this.maxHeight > 6 ? 'Big Air' : 'Straight Air';
-        } else {
-            name = name.trim();
+        const parts = [];
+        if (flips) {
+            const back = this.flip > 0;
+            const times = flips === 1 ? '' : flips === 2 ? 'Double ' : 'Triple ';
+            if (spinDeg >= 180) parts.push(`${times}${back ? 'Rodeo' : 'Misty'} ${spinDeg}`);
+            else parts.push(`${times}${back ? 'Backflip' : 'Frontflip'}`);
+            pts += flips * 1500;
+        } else if (spinDeg >= 180) {
+            parts.push(String(spinDeg));
+        }
+        if (spinDeg >= 180) pts += spinDeg * 3;
+
+        if (grabs.length) {
+            const best = Math.max(...grabs.map(g => g.tweak));
+            const huge = best > 0.8 && this.maxHeight > 8;
+            const names = grabs.map(g => (g.tweak > 0.75 ? 'Tweaked ' : '') + GRAB_NAMES[g.type]);
+            if (huge) parts.unshift('Huge');
+            parts.push(names.join(' to '));
+            for (const g of grabs) pts += 400 + Math.min(g.hold, 2.5) * 450 + g.tweak * 900;
+            if (new Set(grabs.map(g => g.type)).size > 1) pts *= 1.25;
+        } else if (!parts.length) {
+            parts.push(this.maxHeight > 6 ? 'Big Air' : 'Straight Air');
         }
         const mult = quality === 'clean' ? 1.5 : quality === 'sketchy' ? 0.6 : 0.8;
-        return { name: name.trim(), points: Math.round(pts * mult / 10) * 10, mult };
+        return { name: parts.join(' '), points: Math.round(pts * mult / 10) * 10, mult };
     }
 
     checkTrees() {
@@ -375,15 +427,18 @@ export class Player {
             const along = (f.x * this.vel.x + f.z * this.vel.z) / hv;
             const pitch = Math.atan2(this.vel.y, hv) * 0.7 * along;
             root.quaternion.copy(yawQ)
-                .multiply(this._q2.setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch))
+                .multiply(this._q2.setFromAxisAngle(X_AXIS, this.flip))
+                .multiply(this._q2.setFromAxisAngle(X_AXIS, pitch))
                 .multiply(this._q2.setFromAxisAngle(UP, flip));
             root.position.copy(this.pos);
 
             const g = this.grab;
             if (g.held) {
-                const tweak = Math.min(1, Math.max(0, (g.time - 0.18) / 0.7)) * eff.tweak;
-                blendPose(target, POSES.methodGrab, POSES.methodTweak, tweak);
+                const [from, to] = GRABS[g.type];
+                blendPose(target, POSES[from], POSES[to], this.tweakAmount(eff));
                 rider.blendTo(target, 16 * eff.grabSpeed, dt);
+            } else if (Math.abs(this.flipVel) > 1.5) {
+                rider.blendTo(POSES.flipTuck, 10, dt);
             } else {
                 rider.blendTo(POSES.air, 10, dt);
             }
