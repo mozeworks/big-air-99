@@ -72,14 +72,17 @@ export const POSES = {
         hip: [0.02, 0.86, 0], torso: [0, 0.1, -0.38], head: [0, 0.6, -0.5],
         board: [0.02, 0.5, 0], boardRot: [0, 0, 0.18],
         lHand: [0.25, 1.35, -0.75], rHand: [0.3, 0.6, 0.1],
-        rGrab: 1, rGrabPt: [0.13, 0.04, 0.05], knee: [1, 0.4, 0],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.14], knee: [1, 0.4, 0],
     },
-    // Tweaked indy: nose poked out, back leg boned, board pulled to the chest.
+    // Boned indy: front leg locked straight, nose poked up and out, back
+    // knee to the chest, back hand on the toe edge just inside the back
+    // boot, front arm flung back to counter, upper body twisted and laid back.
+    // Solved so the leg is ~96% straight and the hand really reaches.
     indyTweak: {
-        hip: [-0.02, 0.86, 0.04], torso: [0, -0.05, -0.5], head: [0, 0.55, -0.6],
-        board: [0.1, 0.72, -0.08], boardRot: [0.5, 0.18, 0.4],
-        lHand: [0.1, 1.6, -0.9], rHand: [0.3, 0.6, 0.1],
-        rGrab: 1, rGrabPt: [0.13, 0.04, 0.08], knee: [1, 0.8, 0],
+        hip: [0.04, 0.86, 0.06], torso: [1, 1.13, -0.12], head: [0.2, -0.6, -0.45],
+        board: [0.44, 1.02, -0.4], boardRot: [0.73, -0.22, -0.36],
+        lHand: [0.62, 1.44, 0.58], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.14], knee: [0.6, 0.8, 0.3],
     },
     // Back hand reaches behind the back leg to the heel edge.
     stalefishGrab: {
