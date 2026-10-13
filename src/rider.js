@@ -63,12 +63,13 @@ export const POSES = {
     // front knee at 90°, back leg sprawled long, grab arm straight and locked
     // on the heel edge just in front of the front foot, free arm stretched
     // straight out past the head, torso twisted back toward the tail.
-    // Solved with real IK so both knees bend forward like knees do.
+    // Knees track over the toes (board toe edge); the grab arm stays straight
+    // and clears both knees by ~25 cm. Solved with the rig's own IK.
     methodTweak: {
         hip: [0.16, 0.86, 0], torso: [0, 0, 0.6], twist: 0, head: [0.15, -0.9, -0.3],
-        board: [-0.57, 0.72, -0.14], boardRot: [1.69, 0, -1.13],
+        board: [-0.56, 0.76, -0.18], boardRot: [1.84, 0.02, -1.14],
         lHand: [0, 0.7, -0.2], rHand: [-0.5, 1.65, 0.2],
-        lGrab: 1, grabPt: [-0.13, 0.04, -0.38], knee: [1, -0.25, 0], kneeLocal: 1,
+        lGrab: 1, grabPt: [-0.13, 0.04, -0.38], knee: [1, 0.15, 0], kneeBoard: 1,
     },
     // Back hand on the toe edge between the feet, board pulled up under you.
     indyGrab: {
@@ -137,7 +138,7 @@ export const POSES = {
 };
 
 // Every pose gets every key so poses can be blended into each other.
-const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0, kneeLocal: 0 };
+const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0, kneeLocal: 0, kneeBoard: 0 };
 for (const p of Object.values(POSES)) {
     for (const [k, v] of Object.entries(POSE_DEFAULTS)) if (!(k in p)) p[k] = Array.isArray(v) ? v.slice() : v;
 }
@@ -302,6 +303,9 @@ export class Rider {
         // pelvis, so knees still point over the toes when the body twists.
         pole.set(p.knee[0], p.knee[1], p.knee[2]).normalize();
         if (p.kneeLocal > 0) pole.lerp(tmp.copy(pole).applyQuaternion(tq), p.kneeLocal).normalize();
+        // Or (kneeBoard = 1) along the board's toe edge: the feet are strapped
+        // in, so knees track over the toes however the board is cranked.
+        if (p.kneeBoard > 0) pole.lerp(tmp.set(p.knee[0], p.knee[1], p.knee[2]).normalize().applyQuaternion(this.board.quaternion), p.kneeBoard).normalize();
         for (const [sideZ, thigh, shin] of [[-1, this.parts.lThigh, this.parts.lShin], [1, this.parts.rThigh, this.parts.rShin]]) {
             const j = tmp.set(0, -0.02, 0.11 * sideZ).applyQuaternion(tq).add(hip);
             foot.set(0, 0.12, STANCE * sideZ).applyMatrix4(this.board.matrix);
