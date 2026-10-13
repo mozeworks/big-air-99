@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildCourse, heightAt, normalAt, LIP_S } from './course.js';
+import { buildCourse, heightAt, normalAt, LIP_S, LIP2_S, CLIFF_S, CLIFF_X, FEATURES, RAIL } from './course.js';
 import { Player } from './player.js';
 import { Body } from './injury.js';
 import { buildSky, BlobShadow, Spray } from './fx.js';
@@ -122,6 +122,10 @@ function game() {
             if (hurt) flashInjury(hurt.injuries);
             updateBodyHud();
         },
+        onRail(p, rail) {
+            runScore += rail.points;
+            showTrick({ name: rail.name, points: rail.points }, 'rail');
+        },
         onCrash(p, type, energy) {
             spray.emit(p.pos, { x: p.vel.x * 0.4, y: 2, z: p.vel.z * 0.4 }, 160, 5, 3);
             cam.shake = 1;
@@ -225,7 +229,7 @@ function game() {
     let trickTimer = 0;
     function showTrick(trick, quality) {
         const el = $('trick');
-        const labels = { clean: 'CLEAN LANDING', sketchy: 'SKETCHY', heavy: 'HEAVY LANDING', crash: '' };
+        const labels = { clean: 'CLEAN LANDING', sketchy: 'SKETCHY', heavy: 'HEAVY LANDING', crash: '', rail: '' };
         el.innerHTML = `${trick.name ? `<div class="name">${trick.name}</div>` : ''}`
             + (quality === 'crash' ? '<div class="name red">WIPEOUT</div>' : '')
             + (trick.points ? `<div class="pts">+${trick.points.toLocaleString()}</div>` : '')
@@ -318,12 +322,25 @@ function game() {
         const p = player;
         for (const k in input) input[k] = false;
         if (p.state === 'ready') { input.up = true; return; }
+        if (p.state === 'rail') {
+            const lean = p.rail.balance + p.rail.balVel * 0.35;
+            if (lean > 0.04) input.left = true; else if (lean < -0.04) input.right = true;
+            return;
+        }
         if (p.state === 'ride') {
-            const toLip = LIP_S - p.s;
-            const aim = wrapYaw(p.yaw) - p.pos.x * 0.02;
+            const s = p.s, kmh = p.speed * 3.6;
+            let targetX = 0;
+            if (demoMode === 'rail' && s > 20 && s < RAIL.s1 + 4) targetX = RAIL.x;
+            if (s > 440) targetX = demoMode === 'chute' ? 6 : -9;
+            const aim = wrapYaw(p.yaw) - Math.max(-0.25, Math.min(0.25, (p.pos.x - targetX) * 0.08));
             if (aim > 0.03) input.right = true; else if (aim < -0.03) input.left = true;
-            if (p.s < 60) input.up = true;
-            input.jump = toLip < 5 && toLip > 0.6;
+            if (s < 60) input.up = true;
+            // Speed checks before the step-down and the cliff.
+            if (s > 330 && s < LIP2_S - 1 && kmh > 57) input.down = true;
+            if (demoMode !== 'chute' && s > 470 && s < CLIFF_S - 2 && kmh > 24) input.down = true;
+            const toLip = LIP_S - s;
+            input.jump = (toLip < 5 && toLip > 0.6)
+                || (demoMode === 'rail' && s > RAIL.s0 - 9 && s < RAIL.s0 - 1.5 && Math.abs(p.pos.x - RAIL.x) < 0.8);
         } else if (p.state === 'air') {
             const h = p.heightAboveGround;
             const timeToGround = p.vel.y < 0 ? h / -p.vel.y : 9;
@@ -379,8 +396,15 @@ function game() {
         $('air').textContent = air > 1 ? `${air.toFixed(1)} m` : '';
         $('score').textContent = runScore.toLocaleString();
         $('best').textContent = best.toLocaleString();
-        const toLip = LIP_S - player.s;
-        $('lip').textContent = toLip > 0 && toLip < 60 && player.state === 'ride' ? `KICKER ${Math.round(toLip)} m` : '';
+        // Next feature ahead, how far, and how fast you can hit it.
+        const next = FEATURES.find(f => f.lip > player.s && (f.side !== 'left' || player.s < CLIFF_S - 60 || player.pos.x < CLIFF_X));
+        const toNext = next ? next.lip - player.s : Infinity;
+        const kmh = player.speed * 3.6;
+        const warn = next && toNext < 160 && player.state === 'ride';
+        $('lip').textContent = warn ? `${next.name} ${Math.round(toNext)} m · MAX ${next.maxKmh}` : '';
+        $('speed').parentElement.classList.toggle('hot', !!warn && kmh > next.maxKmh);
+        $('balance').classList.toggle('show', player.state === 'rail');
+        if (player.state === 'rail') $('balance-dot').style.left = `${50 + player.rail.balance * 50}%`;
         $('slowmo').classList.toggle('show', timeScale < 0.8);
 
         if (trickTimer > 0 && (trickTimer -= real) <= 0) $('trick').classList.remove('pop');

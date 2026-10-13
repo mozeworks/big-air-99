@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX } from './course.js';
+import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FEATURES, CLIFF_X } from './course.js';
 import { POSES, GRABS, clonePose, blendPose, Rider } from './rider.js';
 
 const G = 9.81;
@@ -71,6 +71,8 @@ export class Player {
         this.tumble = new THREE.Vector3();
         this.finished = false;
         this.lastLanding = null;
+        this.rail = null;
+        this.railCooldown = 0;
         this.rider.flail = 0;
         this.rider.pose = clonePose(POSES.ride);
         this.rider.root.quaternion.identity();
@@ -102,8 +104,11 @@ export class Player {
             for (let i = 0; i < SUBSTEPS; i++) {
                 if (this.state === 'ride') this.stepGround(h, input, eff);
                 else if (this.state === 'air') this.stepAir(h, input, eff);
+                else if (this.state === 'rail') this.stepRail(h, input, eff);
+                if (this.state === 'ride' || this.state === 'air') this.checkRail();
                 if (this.state === 'crashed') break;
             }
+            this.railCooldown = Math.max(0, this.railCooldown - dt);
             if (this.state !== 'crashed') this.checkTrees();
             if (this.state === 'ride' && this.s > S_MAX - 40 && !this.finished) {
                 this.finished = true;
@@ -120,6 +125,7 @@ export class Player {
 
     stepGround(h, input, eff) {
         const n = normalAt(this.pos.x, this.pos.z, this.normal);
+        if (n.y < 0.35) n.set(0, 1, 0); // sampling the cliff face itself
         const v = this.vel;
 
         // Steering. Sketchy landings cost you control for a beat.
@@ -168,13 +174,17 @@ export class Player {
         const nx = this.pos.x + v.x * h, nz = this.pos.z + v.z * h;
         const ballisticY = this.pos.y + v.y * h - 0.5 * G * h * h;
         const groundY = heightAt(nx, nz);
-        if (groundY < ballisticY - 0.003) {
+        if (groundY < ballisticY - 0.0005) {
             this.pos.set(nx, ballisticY, nz);
             this.leaveGround(false);
             return;
         }
         this.pos.set(nx, groundY, nz);
+        // Right at a near-vertical face (the cliff edge) the sampled slope
+        // is the rock face itself. Don't bend velocity down it; the next
+        // step carries you past the edge and you fly off normally.
         const n2 = normalAt(nx, nz, this.normal);
+        if (n2.y < 0.35) { this.normal.set(0, 1, 0); return; }
         const keep = v.length();
         v.addScaledVector(n2, -v.dot(n2)).setLength(keep);
 
@@ -192,8 +202,9 @@ export class Player {
         this.flip = 0;
         this.flipVel = 0;
         this.flipArmed = false;
-        const nearLip = this.s > LIP_S - 4 && this.s < LIP_S + 1.5;
-        this.takeoff = { s: this.s, y: this.pos.y, popped, nearLip, speed: this.speed };
+        const feature = FEATURES.find(f => this.s > f.lip - 4 && this.s < f.lip + 1.5
+            && (f.side !== 'left' || this.pos.x < CLIFF_X));
+        this.takeoff = { s: this.s, y: this.pos.y, popped, nearLip: !!feature, feature, speed: this.speed };
         if (popped) this.pos.y += 0.02;
         this.events.onTakeoff?.(this);
     }
@@ -350,6 +361,82 @@ export class Player {
         return { name: parts.join(' '), points: Math.round(pts * mult / 10) * 10, mult };
     }
 
+    // ------------------------------------------------------------ rail
+
+    checkRail() {
+        if (this.railCooldown > 0) return;
+        const r = this.course.rail;
+        const rel = this._a.subVectors(this.pos, r.a);
+        const t = rel.dot(r.dir) / r.len;
+        if (t < 0 || t > 1) return;
+        const on = this._b.copy(r.a).addScaledVector(r.dir, t * r.len);
+        const lateral = Math.hypot(this.pos.x - on.x, this.pos.z - on.z);
+        const dy = this.pos.y - on.y;
+        // Generous catch when coming down onto it, like SSX's rail magnet.
+        if (this.state === 'air' && lateral < 0.6 && dy > -0.25 && dy < 1.2 && this.vel.y < 0.5) this.startRail(t);
+        // Riding into it at snow level takes your legs out.
+        else if (this.state === 'ride' && lateral < 0.3 && dy < -0.25 && dy > -1.2) this.startCrash('rail', this.speed * 0.6 + 3);
+    }
+
+    startRail(t) {
+        const r = this.course.rail;
+        this.endGrab();
+        const railYaw = Math.atan2(-r.dir.x, -r.dir.z);
+        const along = Math.abs(Math.cos(wrapAngle(this.yaw - railYaw)));
+        const type = along > 0.6 ? '50-50' : 'Boardslide';
+        // Snap the board straight (or square) to the rail.
+        const offset = type === '50-50' ? 0 : Math.PI / 2;
+        const options = [railYaw + offset, railYaw + offset + Math.PI];
+        this.yaw = options.reduce((a, b) => Math.abs(wrapAngle(b - this.yaw)) < Math.abs(wrapAngle(a - this.yaw)) ? b : a);
+        this.state = 'rail';
+        this.rail = { t, type, speed: Math.max(3, this.vel.dot(r.dir)), dist: 0, balance: (Math.random() - 0.5) * 0.3, balVel: 0 };
+        this.charge = 0;
+        this.events.onRailStart?.(this);
+    }
+
+    stepRail(h, input, eff) {
+        const r = this.course.rail, rail = this.rail;
+        const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+        rail.speed += (-G * r.dir.y - 0.06 * G - DRAG * rail.speed * rail.speed) * h;
+        rail.speed = Math.max(1.5, rail.speed);
+        rail.dist += rail.speed * h;
+        rail.t += rail.speed * h / r.len;
+
+        // Balance: unstable on its own, nudged by noise, corrected by ←/→.
+        // Bad knees and ankles make it twitchier.
+        const shaky = 1 + (1 - eff.turn) * 3;
+        rail.balVel += (rail.balance * 3.2 + (Math.random() - 0.5) * 7 * shaky - steer * 6) * h;
+        rail.balVel *= 1 - 1.8 * h;
+        rail.balance += rail.balVel * h;
+        if (Math.abs(rail.balance) > 1) {
+            this.vel.copy(r.dir).multiplyScalar(rail.speed);
+            this.vel.x += Math.sign(rail.balance) * 2;
+            this.startCrash('rail', rail.speed * 0.5 + 4);
+            return;
+        }
+
+        this.pos.copy(r.a).addScaledVector(r.dir, rail.t * r.len);
+        this.vel.copy(r.dir).multiplyScalar(rail.speed);
+
+        if (input.jump) this.charge = Math.min(1, this.charge + h / 0.45);
+        else if (this.charge > 0) {
+            this.vel.y += (1.6 + 1.6 * this.charge) * eff.pop;
+            this.charge = 0;
+            this.exitRail(true);
+        } else if (rail.t >= 1) {
+            this.exitRail(false);
+        }
+    }
+
+    exitRail(popped) {
+        const rail = this.rail;
+        const points = Math.round((100 + rail.dist * 45 * (rail.type === 'Boardslide' ? 1.3 : 1)) / 10) * 10;
+        this.events.onRail?.(this, { name: rail.type, points, dist: rail.dist });
+        this.railCooldown = 0.6;
+        this.pos.y += 0.05;
+        this.leaveGround(popped);
+    }
+
     checkTrees() {
         const t = this.course.treeNear(this.pos.x, this.pos.y, this.pos.z);
         if (t) this.startCrash('tree', this.speed * 0.9);
@@ -419,6 +506,19 @@ export class Player {
 
         const flip = this.switchStance ? Math.PI : 0;
         const yawQ = this._q.setFromAxisAngle(UP, this.yaw);
+
+        if (this.state === 'rail') {
+            const dir = this.course.rail.dir;
+            const railUp = this._a.copy(UP).addScaledVector(dir, -dir.y).normalize();
+            root.quaternion.setFromUnitVectors(UP, railUp).multiply(yawQ)
+                .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), this.rail.balance * 0.45))
+                .multiply(new THREE.Quaternion().setFromAxisAngle(UP, flip));
+            root.position.copy(this.pos);
+            blendPose(target, POSES.slide, POSES.crouch, this.charge);
+            rider.blendTo(target, 12, dt);
+            rider.update(time);
+            return;
+        }
 
         if (this.state === 'air') {
             // Pitch the board to the trajectory so landings read clearly.

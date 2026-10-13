@@ -17,19 +17,48 @@ export const GRADE_POINTS = [
     [209.5, -0.05], // table top
     [219, -0.05],
     [229, -1.05],   // knuckle -> landing, ~46°
-    [300, -1.05],
-    [330, -0.22],
-    [370, -0.06],
-    [520, -0.02],
+    [292, -1.05],
+    [314, -0.10],   // runout flattens, then climbs to bleed off speed
+    [326, 0.13],
+    [374, 0.13],
+    [384, 0.0],
+    [390, 0.06],    // kicker 2: a big step-down. Nearly flat lip, so even
+    [393, 0.06],    // fast riders fly low over a steep landing.
+    [395, -0.8],    // landing starts right under the lip
+    [450, -0.8],
+    [466, -0.04],
+    [535, -0.04],   // long flat runway: check your speed before the cliff
+    [545, -0.06],   // ledge (left) or chute (right)?
+    [552, -1.2],    // chute rolls over, ~50° under the cliff
+    [592, -1.2],
+    [625, -0.25],
+    [660, -0.06],
+    [800, -0.02],
 ];
 
 export const LIP_S = 206.5;
 export const KICKER_START_S = 184;
 export const KNUCKLE_S = 224;
 export const SWEET_SPOT = [240, 285];
+export const LIP2_S = 393;
+export const CLIFF_S = 556;
+// Left side of the run (x < CLIFF_X): instead of rolling into the chute,
+// a flat ledge carries on until it ends in a rock face.
+export const LEDGE_START_S = 545;
+export const CLIFF_X = -3;
+// Things worth announcing on the HUD and pointing the photo cam at.
+// maxKmh is the fastest you can hit it and still land it (from the sim).
+export const FEATURES = [
+    { id: 'kicker', name: 'KICKER', lip: LIP_S, maxKmh: 70 },
+    { id: 'stepdown', name: 'STEP-DOWN', lip: LIP2_S, maxKmh: 60 },
+    { id: 'cliff', name: 'CLIFF', lip: CLIFF_S, maxKmh: 30, side: 'left' },
+];
+
+// A straight rail on the run-in, right of center. Ollie onto it.
+export const RAIL = { x: 7, s0: 80, s1: 108, height: 0.45 };
 export const COURSE_HALF_WIDTH = 16;
 export const S_MIN = -40;
-export const S_MAX = 520;
+export const S_MAX = 800;
 
 const STEP = 0.1;
 const table = [];
@@ -70,4 +99,11 @@ export function profileHeight(s) {
 
 export function profileGrade(s) {
     return gradeAt(s);
+}
+
+// Extra height of the ledge above the chute at s (0 outside the ledge).
+export function ledgeDelta(s) {
+    if (s <= LEDGE_START_S || s >= CLIFF_S) return 0;
+    const ledgeY = profileHeight(LEDGE_START_S) - 0.06 * (s - LEDGE_START_S);
+    return Math.max(0, ledgeY - profileHeight(s));
 }
