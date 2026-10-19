@@ -227,9 +227,10 @@ export class Rider {
 
         const pants = COLORS.pants, jacket = COLORS.jacket;
         this.parts = {
-            // Baggy 90s pants: straight, wide legs that stack over the boots.
-            lThigh: limbMesh(0.125, 0.13, pants, 8), lShin: limbMesh(0.14, 0.125, pants, 8),
-            rThigh: limbMesh(0.125, 0.13, pants, 8), rShin: limbMesh(0.14, 0.125, pants, 8),
+            // Baggy 90s pants: fitted at the waist, then straight wide legs
+            // that stack over the boots.
+            lThigh: limbMesh(0.125, 0.095, pants, 8), lShin: limbMesh(0.14, 0.125, pants, 8),
+            rThigh: limbMesh(0.125, 0.095, pants, 8), rShin: limbMesh(0.14, 0.125, pants, 8),
             lUpper: limbMesh(0.065, 0.058, jacket), lFore: limbMesh(0.058, 0.05, jacket),
             rUpper: limbMesh(0.065, 0.058, jacket), rFore: limbMesh(0.058, 0.05, jacket),
         };
@@ -250,7 +251,7 @@ export class Rider {
         chest.position.y = SPINE / 2;
         const panel = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.18, 0.41), mat(COLORS.panel));
         panel.position.y = SPINE * 0.62;
-        const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.44), mat(pants));
+        const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.36), mat(pants));
         pelvis.position.y = -0.02;
         this.torso.add(chest, panel, pelvis);
         this.rig.add(this.torso);
