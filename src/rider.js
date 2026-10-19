@@ -167,8 +167,9 @@ export function blendPose(out, a, b, t) {
 
 // --------------------------------------------------------------- rig
 
-function limbMesh(r1, r2, color) {
-    const g = new THREE.CylinderGeometry(r1, r2, 1, 6).translate(0, 0.5, 0);
+// r1 = radius at the limb's far end, r2 = at its start (hip, knee, shoulder...).
+function limbMesh(r1, r2, color, sides = 6) {
+    const g = new THREE.CylinderGeometry(r1, r2, 1, sides).translate(0, 0.5, 0);
     return new THREE.Mesh(g, mat(color));
 }
 
@@ -226,12 +227,18 @@ export class Rider {
 
         const pants = COLORS.pants, jacket = COLORS.jacket;
         this.parts = {
-            lThigh: limbMesh(0.085, 0.075, pants), lShin: limbMesh(0.075, 0.065, pants),
-            rThigh: limbMesh(0.085, 0.075, pants), rShin: limbMesh(0.075, 0.065, pants),
+            // Baggy 90s pants: straight, wide legs that stack over the boots.
+            lThigh: limbMesh(0.125, 0.13, pants, 8), lShin: limbMesh(0.14, 0.125, pants, 8),
+            rThigh: limbMesh(0.125, 0.13, pants, 8), rShin: limbMesh(0.14, 0.125, pants, 8),
             lUpper: limbMesh(0.065, 0.058, jacket), lFore: limbMesh(0.058, 0.05, jacket),
             rUpper: limbMesh(0.065, 0.058, jacket), rFore: limbMesh(0.058, 0.05, jacket),
         };
         for (const k in this.parts) this.rig.add(this.parts[k]);
+        // Fill the knee so wide legs don't show a gap when they bend.
+        const kneeGeo = new THREE.SphereGeometry(0.125, 8, 6);
+        this.lKnee = new THREE.Mesh(kneeGeo, mat(pants));
+        this.rKnee = new THREE.Mesh(kneeGeo, mat(pants));
+        this.rig.add(this.lKnee, this.rKnee);
 
         this.lGlove = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.1, 0.09), mat(COLORS.glove));
         this.rGlove = this.lGlove.clone();
@@ -243,7 +250,7 @@ export class Rider {
         chest.position.y = SPINE / 2;
         const panel = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.18, 0.41), mat(COLORS.panel));
         panel.position.y = SPINE * 0.62;
-        const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.34), mat(pants));
+        const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.44), mat(pants));
         pelvis.position.y = -0.02;
         this.torso.add(chest, panel, pelvis);
         this.rig.add(this.torso);
@@ -306,12 +313,13 @@ export class Rider {
         // Or (kneeBoard = 1) along the board's toe edge: the feet are strapped
         // in, so knees track over the toes however the board is cranked.
         if (p.kneeBoard > 0) pole.lerp(tmp.set(p.knee[0], p.knee[1], p.knee[2]).normalize().applyQuaternion(this.board.quaternion), p.kneeBoard).normalize();
-        for (const [sideZ, thigh, shin] of [[-1, this.parts.lThigh, this.parts.lShin], [1, this.parts.rThigh, this.parts.rShin]]) {
+        for (const [sideZ, thigh, shin, kneeCap] of [[-1, this.parts.lThigh, this.parts.lShin, this.lKnee], [1, this.parts.rThigh, this.parts.rShin, this.rKnee]]) {
             const j = tmp.set(0, -0.02, 0.11 * sideZ).applyQuaternion(tq).add(hip);
             foot.set(0, 0.12, STANCE * sideZ).applyMatrix4(this.board.matrix);
             solveIK(j, foot, THIGH, SHIN, pole, knee, jEnd);
             placeLimb(thigh, j, knee);
             placeLimb(shin, knee, jEnd);
+            kneeCap.position.copy(knee);
         }
 
         // Head.
