@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { buildCourse, heightAt, normalAt, LIP_S, LIP2_S, CLIFF_S, CLIFF_X, FEATURES, RAIL } from './course.js';
 import { Player } from './player.js';
-import { Body } from './injury.js';
+import { Body, effectsOf, describeEffects } from './injury.js';
 import { buildSky, BlobShadow, Spray } from './fx.js';
 import { xraySVG } from './xray.js';
 import { POSES, GRABS, Rider, clonePose, blendPose } from './rider.js';
@@ -214,15 +214,27 @@ function game() {
     }
     function hidePanel() { $('panel').classList.remove('show'); }
 
-    function injuryList(list) {
+    function injuryList(list, withEffects = false) {
         if (!list.length) return '<p class="ok">No injuries. Feeling good.</p>';
-        return '<ul class="inj">' + list.map(i => `<li><span>${i.name}</span><b>-${i.dmg}</b></li>`).join('') + '</ul>';
+        return '<ul class="inj">' + list.map(i => {
+            const fx = withEffects ? describeEffects(effectsOf([i])).map(d => d.short).join(' · ') : '';
+            return `<li><span>${i.name}${fx ? `<small>${fx}</small>` : ''}</span><b>-${i.dmg}</b></li>`;
+        }).join('') + '</ul>';
+    }
+
+    // What your injuries do to the controls, so you can ride around them.
+    function effectsList(e) {
+        const lines = describeEffects(e);
+        if (!lines.length) return '';
+        return '<ul class="fx">' + lines.map(d => `<li>${d.text}</li>`).join('') + '</ul>';
     }
 
     function showTitle() {
         $('title').classList.add('show');
         $('title-body').innerHTML = `<p class="stance">Stance: <b>${goofy ? 'GOOFY' : 'REGULAR'}</b> (${goofy ? 'right' : 'left'} foot forward) — <b>G</b> to switch</p>`
-            + (body.injuries.length ? `<p>Riding hurt:</p>${injuryList(body.injuries)}` : '');
+            + (body.injuries.length
+                ? `<h2 class="hurt">RIDING HURT — THIS RUN</h2>${effectsList(body.effects)}<h2>Because of</h2>${injuryList(body.injuries, true)}`
+                : '');
     }
 
     function showCrashReport(result) {
@@ -234,9 +246,10 @@ function game() {
             <div class="xray-wrap">
                 ${xraySVG(body.injuries, fresh)}
                 <div>
-                    ${fresh.length ? '<h2>New</h2>' + injuryList(fresh) : '<p class="ok">Walked it off. Nothing broken.</p>'}
+                    ${fresh.length ? '<h2>New</h2>' + injuryList(fresh, true) : '<p class="ok">Walked it off. Nothing broken.</p>'}
                     <h2>Health ${body.health}/100</h2>
                     <div class="bar"><i style="width:${body.health}%"></i></div>
+                    ${body.injuries.length ? `<h2 class="hurt">Next run</h2>${effectsList(body.effects)}` : ''}
                 </div>
             </div>
             <p class="keys"><b>ENTER</b> hike back up${body.injuries.length ? ' &nbsp; <b>H</b> rest a week' : ''}</p>`, true);
@@ -288,6 +301,7 @@ function game() {
         $('health-bar').className = h > 60 ? '' : h > 30 ? 'mid' : 'low';
         $('health-num').textContent = h;
         $('injuries').innerHTML = body.injuries.map(i => `<span>${i.name}</span>`).join('');
+        $('fx').textContent = describeEffects(body.effects).map(d => d.short).join(' · ');
     }
     updateBodyHud();
     if (body.hospitalized) showHospital(); else showTitle();

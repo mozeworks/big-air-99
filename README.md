@@ -7,10 +7,11 @@ Injuries stick around between runs and change how the rider handles.
 ## Run it
 
 ```bash
-python3 -m http.server 8090
+python3 tools/serve.py
 ```
 
-Then open http://localhost:8090.
+Then open http://localhost:8090. (It's a plain static server that turns off
+browser caching, so edits show up on a normal reload.)
 
 | URL | What it does |
 |---|---|
@@ -52,6 +53,10 @@ you're too hot.
   flip, casing the table, losing it on the rail, riding into the rail, or
   hitting a tree are crashes too.
 - Every slam gets a slow-mo replay, then an X-ray of what you hurt.
+- What your injuries do is spelled out in control terms — on the start
+  screen before each run ("Ollie 18% weaker", "Grabs lock in slower", "Can
+  only tweak to 70%"…), on the crash report next to each new injury, and in
+  the HUD under the health bar — so you can adapt instead of guessing.
 - Each crash type hurts different body parts (`src/injury.js`). Injuries
   have real effects: a bad knee kills your pop, a hurt wrist slows your grab,
   a bad back limits the tweak, a concussion blurs your vision.

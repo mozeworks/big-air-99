@@ -35,6 +35,12 @@
     #health-bar.low { background: #ff3b30; }
     #injuries { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
     #injuries span { background: #b3121fcc; font-size: 11px; padding: 2px 7px; border-radius: 2px; }
+    #fx { margin-top: 5px; font: bold 10px Verdana; letter-spacing: 1px; color: #ffc931; max-width: 210px; margin-left: auto; line-height: 1.5; }
+    .fx { list-style: none; margin-top: 6px; }
+    .fx li { font-size: 13px; padding: 3px 0 3px 20px; position: relative; color: #ffd76a; }
+    .fx li::before { content: '▲'; position: absolute; left: 2px; top: 4px; font-size: 10px; color: #ff8a4a; }
+    .inj small { display: block; font-size: 10px; letter-spacing: 1px; color: #ffc931; margin-top: 2px; }
+    h2.hurt { color: #ff8a4a; }
 
     #trick { position: absolute; top: 24%; left: 0; right: 0; text-align: center; opacity: 0; transform: scale(.6) skewX(-8deg); transition: opacity .25s, transform .25s; }
     #trick.pop { opacity: 1; transform: scale(1) skewX(-8deg); }
@@ -55,7 +61,7 @@
 
     #title, #panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #0d1b33e6; border: 3px solid #fff; padding: 26px 32px; width: min(460px, calc(100vw - 32px)); display: none; box-shadow: 8px 8px 0 #0005; }
     #title.show, #panel.show { display: block; }
-    #title { pointer-events: none; }
+    #title, #panel { max-height: calc(100vh - 32px); overflow-y: auto; }
     h1 { font: italic 900 46px/1 Impact, 'Arial Black', sans-serif; color: #ffe14a; text-shadow: 3px 3px 0 #e8532b; letter-spacing: 1px; }
     h1.red { color: #ff3b30; text-shadow: 3px 3px 0 #000; }
     h2 { font-size: 12px; letter-spacing: 3px; margin: 16px 0 6px; opacity: .8; }
@@ -110,6 +116,7 @@
         <div class="health">
             <div class="label"><span>BODY</span><span id="health-num">100</span></div>
             <div class="hb"><div id="health-bar"></div></div>
+            <div id="fx"></div>
             <div id="injuries"></div>
         </div>
     </div>

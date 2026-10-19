@@ -36,6 +36,44 @@ function pickWeighted(weights, rand) {
     return entries[0][0];
 }
 
+// How a set of injuries changes the rider. Multipliers stack.
+export function effectsOf(injuries) {
+    const e = { pop: 1, turn: 1, tweak: 1, grabSpeed: 1, landTolerance: 0, wobble: 0 };
+    for (const i of injuries) {
+        const sev = i.dmg / 20;
+        switch (i.part) {
+            case 'knee': e.pop *= 1 - 0.18 * sev; e.turn *= 1 - 0.1 * sev; e.landTolerance -= 0.6 * sev; break;
+            case 'ankle': e.landTolerance -= 0.8 * sev; e.turn *= 1 - 0.08 * sev; break;
+            case 'leg': e.pop *= 1 - 0.25 * sev; e.landTolerance -= 0.8 * sev; break;
+            case 'wrist': e.grabSpeed *= 1 - 0.2 * sev; e.tweak *= 1 - 0.15 * sev; break;
+            case 'shoulder': e.tweak *= 1 - 0.15 * sev; break;
+            case 'back': e.tweak *= 1 - 0.25 * sev; e.landTolerance -= 0.5 * sev; break;
+            case 'ribs': e.pop *= 1 - 0.1 * sev; break;
+            case 'head': e.wobble += 0.5 * sev; break;
+        }
+    }
+    e.pop = Math.max(0.35, e.pop);
+    e.turn = Math.max(0.5, e.turn);
+    e.tweak = Math.max(0.25, e.tweak);
+    e.grabSpeed = Math.max(0.35, e.grabSpeed);
+    return e;
+}
+
+// The same effects in control terms, so a player knows what to adapt to.
+// `short` is for the HUD, `text` for the start and crash screens.
+const CLEAN_LANDING = 10.5; // m/s, keep in sync with CLEAN_VN in player.js
+export function describeEffects(e) {
+    const pct = x => Math.round(Math.abs(x) * 100);
+    const out = [];
+    if (e.pop < 0.995) out.push({ short: `POP −${pct(1 - e.pop)}%`, text: `Ollie ${pct(1 - e.pop)}% weaker — less height off the lip` });
+    if (e.grabSpeed < 0.995) out.push({ short: `GRAB SLOW`, text: `Grabs lock in ${pct(1 - e.grabSpeed)}% slower` });
+    if (e.tweak < 0.995) out.push({ short: `TWEAK ${pct(e.tweak)}%`, text: `Can only tweak to ${pct(e.tweak)}%` });
+    if (e.landTolerance < -0.05) out.push({ short: `LANDINGS −${pct(-e.landTolerance / CLEAN_LANDING)}%`, text: `Landings hurt sooner — ${pct(-e.landTolerance / CLEAN_LANDING)}% less cushion` });
+    if (e.turn < 0.995) out.push({ short: `TURN −${pct(1 - e.turn)}%`, text: `Carving ${pct(1 - e.turn)}% slower, shakier on the rail` });
+    if (e.wobble > 0) out.push({ short: `BLURRY`, text: `Blurred, swimming vision` });
+    return out;
+}
+
 export class Body {
     constructor(persist = true) {
         this.persist = persist;
@@ -58,25 +96,7 @@ export class Body {
 
     // How injuries change the rider. Multipliers stack.
     get effects() {
-        const e = { pop: 1, turn: 1, tweak: 1, grabSpeed: 1, landTolerance: 0, wobble: 0 };
-        for (const i of this.injuries) {
-            const sev = i.dmg / 20;
-            switch (i.part) {
-                case 'knee': e.pop *= 1 - 0.18 * sev; e.turn *= 1 - 0.1 * sev; e.landTolerance -= 0.6 * sev; break;
-                case 'ankle': e.landTolerance -= 0.8 * sev; e.turn *= 1 - 0.08 * sev; break;
-                case 'leg': e.pop *= 1 - 0.25 * sev; e.landTolerance -= 0.8 * sev; break;
-                case 'wrist': e.grabSpeed *= 1 - 0.2 * sev; e.tweak *= 1 - 0.15 * sev; break;
-                case 'shoulder': e.tweak *= 1 - 0.15 * sev; break;
-                case 'back': e.tweak *= 1 - 0.25 * sev; e.landTolerance -= 0.5 * sev; break;
-                case 'ribs': e.pop *= 1 - 0.1 * sev; break;
-                case 'head': e.wobble += 0.5 * sev; break;
-            }
-        }
-        e.pop = Math.max(0.35, e.pop);
-        e.turn = Math.max(0.5, e.turn);
-        e.tweak = Math.max(0.25, e.tweak);
-        e.grabSpeed = Math.max(0.35, e.grabSpeed);
-        return e;
+        return effectsOf(this.injuries);
     }
 
     // energy ~ m/s of impact. Returns the new injuries (may be empty).
