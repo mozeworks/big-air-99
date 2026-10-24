@@ -531,7 +531,7 @@ export class Player {
             // A fully tweaked method lays the whole body out sideways, back
             // toward the heel side, board heading overhead.
             const g = this.grab;
-            const layoutTarget = g.held && g.type === 'method' ? this.tweakAmount(eff) * 1.05 : 0;
+            const layoutTarget = g.held && g.type === 'method' ? this.tweakAmount(eff) * 0.3 : 0;
             this.layout = (this.layout || 0) + (layoutTarget - (this.layout || 0)) * Math.min(1, 6 * dt);
             root.quaternion.copy(yawQ)
                 .multiply(this._q2.setFromAxisAngle(X_AXIS, this.flip))

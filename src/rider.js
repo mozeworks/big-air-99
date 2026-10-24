@@ -59,24 +59,27 @@ export const POSES = {
         lHand: [0, 0.7, -0.2], rHand: [-0.05, 1.6, 0.6],
         lGrab: 1, grabPt: [-0.13, 0.04, -0.08], knee: [1, -0.2, 0],
     },
-    // Full Chris Roach, laid out: back arched with the pelvis thrust out,
-    // front knee at 90°, back leg sprawled long, grab arm straight and locked
-    // on the heel edge just in front of the front foot, free arm stretched
-    // straight out past the head, torso twisted back toward the tail.
-    // Knees track over the toes (board toe edge); the grab arm stays straight
-    // and clears both knees by ~25 cm. Solved with the rig's own IK.
+    // Method in full extension (reference: a regular rider fully sprawled
+    // out): one long line from fingertips to feet — torso fairly upright
+    // (~22° back), both legs opened out and swung way back behind (front knee
+    // ~55°, back leg ~94% straight), board trailing behind, grab arm straight
+    // to the heel edge just in front of the front foot, free arm straight up
+    // to the sky. Knees track over the toes. Solved with tools/solve-pose.mjs.
     methodTweak: {
-        hip: [0.16, 0.86, 0], torso: [0, 0, 0.6], twist: 0, head: [0.15, -0.9, -0.3],
-        board: [-0.56, 0.76, -0.18], boardRot: [1.84, 0.02, -1.14],
-        lHand: [0, 0.7, -0.2], rHand: [-0.5, 1.65, 0.2],
+        hip: [0.16, 0.86, 0], torso: [0, 0, 0.39], twist: 0.03, head: [0.15, -0.9, -0.3],
+        board: [-0.71, 0.97, -0.24], boardRot: [1.21, -0.2, -1.61],
+        lHand: [0, 0.7, -0.2], rHand: [-0.04, 1.86, 0.19],
         lGrab: 1, grabPt: [-0.13, 0.04, -0.38], knee: [1, 0.15, 0], kneeBoard: 1,
     },
-    // Back hand on the toe edge between the feet, board pulled up under you.
+    // Classic indy (the first moment of the grab): board pulled up level in
+    // front, both knees tucked over the toes, back hand on the toe edge
+    // between the feet, front arm pointing out over the nose. Holding the
+    // grab bones it out into indyTweak. Solved with tools/solve-pose.mjs.
     indyGrab: {
-        hip: [0.02, 0.86, 0], torso: [0, 0.1, -0.38], head: [0, 0.6, -0.5],
-        board: [0.02, 0.5, 0], boardRot: [0, 0, 0.18],
-        lHand: [0.25, 1.35, -0.75], rHand: [0.3, 0.6, 0.1],
-        rGrab: 1, rGrabPt: [0.13, 0.04, 0.14], knee: [1, 0.4, 0],
+        hip: [0.02, 0.86, 0], torso: [0, 0, -0.21], head: [0, 0.3, -0.35],
+        board: [0.35, 0.96, -0.04], boardRot: [-0.14, 0, -0.22],
+        lHand: [0.32, 1.45, -0.72], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.05], knee: [1, 0.35, 0], kneeBoard: 1,
     },
     // Boned indy: front leg locked straight, nose poked up and out, back
     // knee to the chest, back hand on the toe edge just inside the back
