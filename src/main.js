@@ -310,6 +310,19 @@ function game() {
     const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
     function updateCamera(dt, time) {
         const p = player;
+        // Film mode: a scripted camera that tracks the rider. `cam.fixed` is
+        // a position, or a function of the player for a moving camera.
+        if (cam.fixed) {
+            camera.position.copy(typeof cam.fixed === 'function' ? cam.fixed(p) : cam.fixed);
+            tmp.copy(p.pos); tmp.y += 0.6;
+            cam.look.lerp(tmp, cam.snap ? 1 : 1 - Math.exp(-12 * dt));
+            cam.snap = false;
+            camera.fov = cam.fov || 48;
+            camera.lookAt(cam.look);
+            camera.updateProjectionMatrix();
+            sky.position.copy(camera.position);
+            return;
+        }
         // Stay on the photographer until the rider is coming down to land.
         const timeToGround = p.vel.y < 0 ? p.heightAboveGround / -p.vel.y : Infinity;
         if (cam.mode === 'photo' && (p.state !== 'air' || timeToGround < 0.7)) {
@@ -487,8 +500,17 @@ function game() {
     const clock = new THREE.Clock();
     let timeScale = 1;
     let time = 0;
+    // One frame of the game. `real` is the frame's wall-clock length.
+    // ?film stops the live loop so tools can step frames at a fixed rate
+    // (window.__game.frame) and record them, e.g. for video clips.
+    const film = params.has('film');
+    window.__game.frame = real => frame(real);
+    window.__game.camera = camera;
     renderer.setAnimationLoop(() => {
         const real = Math.min(clock.getDelta(), 1 / 20);
+        if (!film) frame(real);
+    });
+    function frame(real) {
         timeScale += ((player.slowmo ? 0.45 : 1) - timeScale) * Math.min(1, real * 6);
         const dt = real * timeScale;
         time += dt;
@@ -554,5 +576,5 @@ function game() {
         if (toastTimer > 0 && (toastTimer -= real) <= 0) $('toast').className = '';
 
         renderer.render(scene, camera);
-    });
+    }
 }
