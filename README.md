@@ -36,13 +36,15 @@ you're too hot.
 
 | Key | On snow | In the air | On the rail |
 |---|---|---|---|
-| ← → | Carve | Spin | Balance |
-| ↑ | Drop in / tuck | Frontflip | |
-| ↓ | Brake | Backflip | |
+| A / D | Carve | Spin | Balance |
+| W | Drop in / tuck | Frontflip | |
+| S | Brake | Backflip | |
 | Space | Hold to load, release to ollie | | Release to pop off |
-| J / K / L / I | | Method / indy / stalefish / japan. Hold to tweak, switch keys to combo — **let go before you land** | |
+| H / J / K / L | | Method / indy / stalefish / japan. Hold to tweak, switch keys to combo — **let go before you land** | |
 | R / C / V | Restart / photo cam / retro pixels | | |
 | G | Switch stance (start screen): goofy is default | | |
+
+The arrow keys also steer, if you prefer them.
 
 ## How getting hurt works
 
@@ -60,7 +62,7 @@ you're too hot.
 - Each crash type hurts different body parts (`src/injury.js`). Injuries
   have real effects: a bad knee kills your pop, a hurt wrist slows your grab,
   a bad back limits the tweak, a concussion blurs your vision.
-- Injuries persist in the browser's local storage. **H** rests a week; anything
+- Injuries persist in the browser's local storage. **E** rests a week; anything
   serious (fracture, torn ACL…) means an ambulance and rehab.
 
 ## Code map

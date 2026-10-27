@@ -170,8 +170,8 @@ function game() {
     const KEYS = {
         ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
         ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
-        Space: 'jump', ShiftLeft: 'method', ShiftRight: 'method', KeyJ: 'method',
-        KeyK: 'indy', KeyL: 'stalefish', KeyI: 'japan',
+        // Left hand steers (WASD, arrows also work), right hand grabs.
+        Space: 'jump', KeyH: 'method', KeyJ: 'indy', KeyK: 'stalefish', KeyL: 'japan',
     };
     addEventListener('keydown', e => {
         if (KEYS[e.code]) { input[KEYS[e.code]] = true; e.preventDefault(); }
@@ -184,7 +184,7 @@ function game() {
             if (body.hospitalized) { body.rehab(); }
             restart();
         }
-        if (e.code === 'KeyH' && panelOpen() && !body.hospitalized && body.injuries.length) {
+        if (e.code === 'KeyE' && panelOpen() && !body.hospitalized && body.injuries.length) {
             body.rest();
             restart();
             toast('Took a week off');
@@ -252,7 +252,7 @@ function game() {
                     ${body.injuries.length ? `<h2 class="hurt">Next run</h2>${effectsList(body.effects)}` : ''}
                 </div>
             </div>
-            <p class="keys"><b>ENTER</b> hike back up${body.injuries.length ? ' &nbsp; <b>H</b> rest a week' : ''}</p>`, true);
+            <p class="keys"><b>ENTER</b> hike back up${body.injuries.length ? ' &nbsp; <b>E</b> rest a week' : ''}</p>`, true);
     }
 
     function showHospital(result) {
