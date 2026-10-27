@@ -176,7 +176,8 @@ function game() {
     addEventListener('keydown', e => {
         if (KEYS[e.code]) { input[KEYS[e.code]] = true; e.preventDefault(); }
         if (e.repeat) return;
-        if (e.code === 'KeyR') restart();
+        // Restart lives on Backspace, out of reach of the WASD hand.
+        if (e.code === 'Backspace') { e.preventDefault(); restart(); }
         if (e.code === 'KeyG' && player.state === 'ready' && !panelOpen()) setStance(!goofy);
         if (e.code === 'KeyC') { cam.cinematic = !cam.cinematic; toast(`Photo cam ${cam.cinematic ? 'ON' : 'OFF'}`); }
         if (e.code === 'KeyV') { retro = !retro; applyResolution(); toast(retro ? 'Retro pixels ON' : 'Retro pixels OFF'); }

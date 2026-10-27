@@ -41,7 +41,8 @@ you're too hot.
 | S | Brake | Backflip | |
 | Space | Hold to load, release to ollie | | Release to pop off |
 | H / J / K / L | | Method / indy / stalefish / japan. Hold to tweak, switch keys to combo — **let go before you land** | |
-| R / C / V | Restart / photo cam / retro pixels | | |
+| Backspace | Restart | | |
+| C / V | Photo cam / retro pixels | | |
 | G | Switch stance (start screen): goofy is default | | |
 
 The arrow keys also steer, if you prefer them.
