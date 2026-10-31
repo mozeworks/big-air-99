@@ -48,7 +48,7 @@ cross it and ski patrol drops you back in the middle of the trail.
 | Space | Hold to load, release to ollie | | Release to pop off |
 | H / J / K / L | | Method / indy / stalefish / japan. Hold to tweak, switch keys to combo — **let go before you land** | |
 | Backspace | Restart | | |
-| C / V | Photo cam / retro pixels | | |
+| C / V / M | Photo cam / retro pixels / mute | | |
 | G | Switch stance (start screen): goofy is default | | |
 
 The arrow keys also steer, if you prefer them.

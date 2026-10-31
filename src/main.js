@@ -4,6 +4,7 @@ import { Player } from './player.js';
 import { Body, effectsOf, describeEffects } from './injury.js';
 import { buildSky, BlobShadow, Spray } from './fx.js';
 import { xraySVG } from './xray.js';
+import { Sound } from './audio.js';
 import { POSES, GRABS, Rider, clonePose, blendPose } from './rider.js';
 
 const params = new URLSearchParams(location.search);
@@ -91,8 +92,12 @@ function game() {
         look: new THREE.Vector3(), snap: true, shake: 0,
     };
 
+    const sound = new Sound();
+    // Audio may only start after the player interacts with the page.
+    for (const ev of ['keydown', 'pointerdown']) addEventListener(ev, () => sound.unlock());
     const events = {
         onTakeoff(p) {
+            if (p.takeoff.popped) sound.pop();
             const v = p.vel;
             if (p.takeoff.nearLip) {
                 spray.emit(p.pos, { x: v.x * 0.5, y: 2, z: v.z * 0.5 }, 70, 3, 3);
@@ -113,6 +118,8 @@ function game() {
             }
         },
         onLand(p, quality, info, trick, hurt) {
+            sound.land(info.vn, quality);
+            if (trick) sound.trick(trick.points);
             const v = p.vel;
             spray.emit(p.pos, { x: v.x * 0.3, y: 1, z: v.z * 0.3 }, Math.min(70, 15 + info.vn * 5), 4, 2.5);
             cam.shake = Math.min(1, info.vn / 14);
@@ -125,19 +132,26 @@ function game() {
             if (hurt) flashInjury(hurt.injuries);
             updateBodyHud();
         },
+        onRailStart() {
+            sound.railOn();
+        },
         onRail(p, rail) {
+            sound.trick(rail.points);
             runScore += rail.points;
             showTrick({ name: rail.name, points: rail.points }, 'rail');
         },
         onReturned() {
+            sound.patrol();
             cam.snap = true;
             toast('SKI PATROL: BACK ON THE TRAIL');
         },
         onBear(p) {
+            sound.bear();
             showTrick({ name: 'BEAR!', points: 0 }, 'crash');
             cam.shake = 0.6;
         },
         onCrash(p, type, energy) {
+            sound.crash(type, Math.min(1, Math.max(0, (energy - 6) / 10)), body.hospitalized);
             replay.crashIndex = replay.frames.length;
             spray.emit(p.pos, { x: p.vel.x * 0.4, y: 2, z: p.vel.z * 0.4 }, 160, 5, 3);
             cam.shake = 1;
@@ -159,7 +173,7 @@ function game() {
     };
 
     const player = new Player(scene, course, body, events);
-    window.__game = { player, body, cam, course };
+    window.__game = { player, body, cam, course, sound };
 
     // Stance: goofy (right foot forward) unless the rider has switched.
     let goofy = params.get('stance') !== 'regular';
@@ -189,6 +203,7 @@ function game() {
         if (e.code === 'KeyG' && player.state === 'ready' && !panelOpen()) setStance(!goofy);
         if (e.code === 'KeyC') { cam.cinematic = !cam.cinematic; toast(`Photo cam ${cam.cinematic ? 'ON' : 'OFF'}`); }
         if (e.code === 'KeyV') { retro = !retro; applyResolution(); toast(retro ? 'Retro pixels ON' : 'Retro pixels OFF'); }
+        if (e.code === 'KeyM') { sound.setMuted(!sound.muted); toast(sound.muted ? 'Sound OFF' : 'Sound ON'); }
         if (e.code === 'Enter' && panelOpen()) {
             if (body.hospitalized) { body.rehab(); }
             restart();
@@ -525,6 +540,7 @@ function game() {
         timeScale += ((player.slowmo ? 0.45 : 1) - timeScale) * Math.min(1, real * 6);
         const dt = real * timeScale;
         time += dt;
+        sound.update(player, input, replay.active || panelOpen());
 
         if (replay.active) {
             const p = stepReplay(real);
