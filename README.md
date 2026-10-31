@@ -32,10 +32,11 @@ km/h**, ~9 m rock face) or the **chute** on the right. Signs and the HUD tell
 you what's next and how fast you can hit it; your speed flashes red when
 you're too hot.
 
-You're free to explore the trees off the groomed run, but there's an orange
-rope line (with **AREA CLOSED — BEAR COUNTRY** signs) 40 m out on each side and
-across the top and bottom. Get close and the HUD warns you; cross it and a bear
-comes out of the trees.
+You're free to explore the trees off the groomed run — but that's **bear
+country**. The HUD warns you while you're off-trail, and after a couple of
+seconds a bear can come out of the trees at any moment (about 9 s on average).
+The orange rope line 40 m out (and across the top and bottom) is a hard edge:
+cross it and ski patrol drops you back in the middle of the trail.
 
 ## Controls
 
@@ -81,5 +82,5 @@ The arrow keys also steer, if you prefer them.
 - `src/player.js` — physics, carving, ollie, spins, grabs, landing evaluation.
 - `src/injury.js` — injury model and persistence.
 - `src/xray.js` — the X-ray film.
-- `src/bear.js` — the out-of-bounds bear.
+- `src/bear.js` — the off-trail bear.
 - `src/main.js` — renderer, cameras (chase + photo cam), HUD, replay, demo autopilot.

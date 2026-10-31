@@ -129,6 +129,10 @@ function game() {
             runScore += rail.points;
             showTrick({ name: rail.name, points: rail.points }, 'rail');
         },
+        onReturned() {
+            cam.snap = true;
+            toast('SKI PATROL: BACK ON THE TRAIL');
+        },
         onBear(p) {
             showTrick({ name: 'BEAR!', points: 0 }, 'crash');
             cam.shake = 0.6;
@@ -576,7 +580,7 @@ function game() {
         $('lip').textContent = warn ? `${next.name} ${Math.round(toNext)} m · MAX ${next.maxKmh}` : '';
         $('speed').parentElement.classList.toggle('hot', !!warn && kmh > next.maxKmh);
         $('balance').classList.toggle('show', player.state === 'rail');
-        $('oob').classList.toggle('show', player.oobWarn && !player.bearing && player.state !== 'crashed');
+        $('oob').classList.toggle('show', player.offTrail && !player.bearing && player.state !== 'crashed');
         if (player.state === 'rail') $('balance-dot').style.left = `${50 + player.rail.balance * 50}%`;
         $('slowmo').classList.toggle('show', timeScale < 0.8);
 

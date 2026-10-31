@@ -261,20 +261,27 @@ function buildBoundary(scene) {
         for (let x = -BOUNDS.x; x <= BOUNDS.x; x += step) pts.push(new THREE.Vector3(x, heightAt(x, -s) + 1.1, -s));
         scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), ropeMat));
     }
+    // AREA CLOSED on the rope; BEAR COUNTRY where the trees start.
     const signs = [];
-    for (let s = 40; s < BOUNDS.sMax; s += 90) signs.push([s, -1], [s + 45, 1]);
-    for (const [s, side] of signs) {
+    for (let s = 40; s < BOUNDS.sMax; s += 90) {
+        signs.push([s, -1, BOUNDS.x - 1.5, '#c4161c', 'AREA CLOSED', ['ROPE LINE', 'STAY IN BOUNDS']]);
+        signs.push([s + 45, 1, BOUNDS.x - 1.5, '#c4161c', 'AREA CLOSED', ['ROPE LINE', 'STAY IN BOUNDS']]);
+        signs.push([s + 20, -1, W + 2.5, '#1d1d1d', 'BEAR COUNTRY', ['OFF TRAIL AT', 'YOUR OWN RISK']]);
+        signs.push([s + 65, 1, W + 2.5, '#1d1d1d', 'BEAR COUNTRY', ['OFF TRAIL AT', 'YOUR OWN RISK']]);
+    }
+    for (const [s, side, dist, bg, title, lines] of signs) {
+        if (s > BOUNDS.sMax - 5) continue;
         const canvas = document.createElement('canvas');
         canvas.width = 256; canvas.height = 160;
         const g = canvas.getContext('2d');
-        g.fillStyle = '#c4161c'; g.fillRect(0, 0, 256, 160);
-        g.strokeStyle = '#fff'; g.lineWidth = 8; g.strokeRect(8, 8, 240, 144);
-        g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.font = "italic 900 34px Impact, 'Arial Black', sans-serif";
-        g.fillText('AREA CLOSED', 128, 50);
-        g.font = "bold 22px Verdana, sans-serif";
-        g.fillText('BEAR COUNTRY', 128, 98);
-        g.fillText('BEYOND ROPE', 128, 124);
+        g.fillStyle = bg; g.fillRect(0, 0, 256, 160);
+        g.strokeStyle = bg === '#1d1d1d' ? '#ffd21f' : '#fff'; g.lineWidth = 8; g.strokeRect(8, 8, 240, 144);
+        g.fillStyle = bg === '#1d1d1d' ? '#ffd21f' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = "italic 900 32px Impact, 'Arial Black', sans-serif";
+        g.fillText(title, 128, 50);
+        g.font = "bold 20px Verdana, sans-serif";
+        g.fillText(lines[0], 128, 98);
+        g.fillText(lines[1], 128, 124);
         const tex = new THREE.CanvasTexture(canvas);
         tex.magFilter = THREE.NearestFilter;
         const board = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
@@ -282,7 +289,7 @@ function buildBoundary(scene) {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 5).translate(0, 1.0, 0), new THREE.MeshLambertMaterial({ color: 0x333333 }));
         const grp = new THREE.Group();
         grp.add(board, post);
-        const x = side * (BOUNDS.x - 1.5);
+        const x = side * dist;
         grp.position.set(x, heightAt(x, -s), -s);
         grp.rotation.y = side * Math.PI / 2;   // face back toward the run
         scene.add(grp);

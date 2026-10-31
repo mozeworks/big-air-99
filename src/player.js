@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FEATURES, CLIFF_X, BOUNDS } from './course.js';
+import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FEATURES, CLIFF_X, BOUNDS, COURSE_HALF_WIDTH } from './course.js';
 import { Bear } from './bear.js';
 import { POSES, GRABS, clonePose, blendPose, Rider } from './rider.js';
 
@@ -27,6 +27,8 @@ const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const GRAB_KEYS = ['method', 'indy', 'stalefish', 'japan'];
 const GRAB_NAMES = { method: 'Method', indy: 'Indy', stalefish: 'Stalefish', japan: 'Japan' };
+// Bears off-trail: seconds of grace, then chance per second.
+const BEAR_GRACE = 2, BEAR_RATE = 0.12;
 const NO_INPUT = { left: false, right: false, up: false, down: false, jump: false };
 const freshGrab = () => ({ held: false, type: null, time: 0, hold: 0, maxTweak: 0, used: false, done: [] });
 
@@ -79,7 +81,8 @@ export class Player {
         this.railCooldown = 0;
         this.layout = 0;
         this.bearing = false;
-        this.oobWarn = false;
+        this.offTrail = false;
+        this.offTrailT = 0;
         this.bear?.hide();
         this.rider.flail = 0;
         this.rider.pose = clonePose(POSES.ride);
@@ -450,9 +453,11 @@ export class Player {
 
     // ------------------------------------------------------------ bounds
 
+    // Off the groomed run (in the trees, inside the rope) is bear country:
+    // after a short grace period a bear can find you at any moment. The rope
+    // itself is a hard edge — cross it and ski patrol puts you back on the trail.
     checkBounds(dt) {
-        const x = Math.abs(this.pos.x), s = this.s, w = BOUNDS.warn;
-        this.oobWarn = x > BOUNDS.x - w || s < BOUNDS.sMin + w || s > BOUNDS.sMax - w;
+        const x = Math.abs(this.pos.x), s = this.s;
         if (this.bearing) {
             if (this.bear.update(dt, this.pos, heightAt)) {
                 this.bear.hold();
@@ -464,18 +469,37 @@ export class Player {
             return;
         }
         if (x > BOUNDS.x || s < BOUNDS.sMin || s > BOUNDS.sMax) {
+            this.returnToTrail();
+            return;
+        }
+        this.offTrail = x > COURSE_HALF_WIDTH + 2;
+        this.offTrailT = this.offTrail ? this.offTrailT + dt : 0;
+        if (this.offTrailT > BEAR_GRACE && Math.random() < dt * BEAR_RATE) {
             // A bear comes out of the trees on the far side, ahead of you.
-            const side = x > BOUNDS.x ? Math.sign(this.pos.x) : 0;
             const ahead = this.forward(this._b);
             const from = this.pos.clone().addScaledVector(ahead, 6);
-            from.x += side * 8;
-            if (!side) from.addScaledVector(ahead, 4);
+            from.x += Math.sign(this.pos.x) * 8;
             from.y = heightAt(from.x, from.z);
             this.bearing = true;
             this.bear.charge(from, 1.1);
             this.endGrab();
             this.events.onBear?.(this);
         }
+    }
+
+    returnToTrail() {
+        const s = this.s < BOUNDS.sMin ? 10 : this.s > BOUNDS.sMax ? BOUNDS.sMax - 60 : this.s;
+        this.pos.set(0, heightAt(0, -s), -s);
+        this.state = 'ride';
+        this.yaw = 0;
+        this.vel.set(0, 0, -6);
+        this.endGrab();
+        this.flip = this.flipVel = this.spin = this.spinVel = 0;
+        this.layout = 0;
+        this.charge = 0;
+        this.offTrail = false;
+        this.offTrailT = 0;
+        this.events.onReturned?.(this);
     }
 
     checkTrees() {
