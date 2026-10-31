@@ -64,10 +64,16 @@ function measure(x, cfg) {
     const grab = bp(cfg.grabPt);
     const elbow = ik(sh, grab, UA, FA, app(T, [-0.2, -1, 0.5 * grabSide]));
     const armClear = Math.min(...[fKnee, bKnee].map(k => Math.min(segDist(k, sh, elbow), segDist(k, elbow, grab))));
+    // Where the arm sits along the board (board-local z; back binding at +STANCE).
+    // A proper indy arm stays outside the back leg (z beyond the back knee) and
+    // only wraps in around the ankle to the toe edge — never between the knees.
+    const Bt = B[0].map((_, i) => B.map(r => r[i]));
+    const localZ = v => app(Bt, sub(v, [bx, by, bz]))[2];
+    const elbowZ = localZ(elbow), foreZ = localZ(scale(add(elbow, grab), 0.5)), backKneeZ = localZ(bKnee);
     const center = [bx, by, bz], chest = tp([0, SPINE * 0.6, 0]);
     return {
         f: leg(fHip, fKnee, fFoot), b: leg(bHip, bKnee, bFoot),
-        reach: len(sub(grab, sh)) / ARM, armClear,
+        reach: len(sub(grab, sh)) / ARM, armClear, elbowZ, foreZ, backKneeZ,
         arch: Math.atan2(-up[0], up[1]),                                       // + = leaning back
         boardTilt: Math.acos(Math.max(-1, Math.min(1, app(B, [0, 1, 0])[1]))), // 0 = flat
         noseUp: Math.asin(app(B, [0, 0, -1])[1]),
@@ -106,7 +112,7 @@ const CONFIGS = {
     // both knees tucked over the toes, back hand on the toe edge between the
     // feet, upright torso, front arm pointing out toward the nose.
     indyGrab: {
-        hip: [0.02, 0.86, 0], knee: [1, 0.35, 0], hand: 'back', grabPt: [0.13, 0.04, 0.05],
+        hip: [0.02, 0.86, 0], knee: [1, 0.35, 0], hand: 'back', grabPt: [0.13, 0.04, 0.19],
         start: [0, 0, -0.2, 0.1, 0.4, 0, 0, 0, 0.2],
         cost: m => 30 * sq(m.f.ext - 0.5) + 30 * sq(m.b.ext - 0.5)
             + 4000 * sq(under(m.f.overToes, 0.08)) + 4000 * sq(under(m.b.overToes, 0.08))
@@ -115,6 +121,7 @@ const CONFIGS = {
             + 10 * sq(m.arch + 12 * D)                                          // slightly forward
             + 8 * sq(m.boardTilt - 15 * D) + 6 * sq(m.noseUp + 8 * D)          // near level, nose a touch down
             + 20 * sq(under(m.boardFwd, 0.1))                                   // board out in front
+            + 300 * sq(under(m.elbowZ, STANCE + 0.1)) + 300 * sq(under(m.foreZ, STANCE - 0.02)) // arm outside the back leg
             + 30 * sq(under(m.clear, 0.3)),
         freeArm: () => norm([0.35, 0.25, -0.9]),                              // pointing out over the nose
         freeShoulder: m => m.fSh,
@@ -125,7 +132,7 @@ const CONFIGS = {
     // board fairly level with the nose a touch up, front arm slung back
     // behind toward the tail to counter, head down spotting the landing.
     indyTweak: {
-        hip: [0.04, 0.86, 0.06], knee: [1, 0.3, 0], hand: 'back', grabPt: [0.13, 0.04, 0.15],
+        hip: [0.04, 0.86, 0.06], knee: [1, 0.3, 0], hand: 'back', grabPt: [0.13, 0.04, 0.19],
         start: [0, 0, -0.1, 0.3, 0.6, -0.2, -0.3, 0, 0.2],
         cost: m => 80 * sq(m.f.ext - 0.985) + 30 * sq(m.b.ext - 0.55)
             + 4000 * sq(under(m.f.overToes, 0.03)) + 4000 * sq(under(m.b.overToes, 0.08))
@@ -136,6 +143,7 @@ const CONFIGS = {
             + 20 * sq(under(m.boardFwd, 0.1))                                   // board out under/in front
             + 25 * sq(m.boardHigh + 0.12)                                        // board below the hips, leg angled down
             + 200 * sq(over(m.noseZ, -0.8))                                     // nose stays forward (no flipped board)
+            + 300 * sq(under(m.elbowZ, STANCE + 0.1)) + 300 * sq(under(m.foreZ, STANCE - 0.02)) // arm outside the back leg
             + 30 * sq(under(m.clear, 0.3))
             + 3 * sq(m.twist),
         freeArm: () => norm([-0.4, 0.1, 0.9]),                                // slung back toward the tail
@@ -167,7 +175,7 @@ console.log('cost', bestC.toFixed(4));
 console.log({
     frontLeg: `${deg(m.f.bend)}° bend, ${(m.f.ext * 100).toFixed(0)}% ext, overToes ${m.f.overToes.toFixed(2)}`,
     backLeg: `${deg(m.b.bend)}° bend, ${(m.b.ext * 100).toFixed(0)}% ext, overToes ${m.b.overToes.toFixed(2)}`,
-    grabReach: m.reach.toFixed(2), armClear: m.armClear.toFixed(2),
+    grabReach: m.reach.toFixed(2), armClear: m.armClear.toFixed(2), elbowZ: m.elbowZ.toFixed(2), forearmZ: m.foreZ.toFixed(2), backKneeZ: m.backKneeZ.toFixed(2),
     arch: deg(m.arch) + '°', boardTilt: deg(m.boardTilt) + '°', noseUp: deg(m.noseUp) + '°',
     boardFwd: m.boardFwd.toFixed(2), boardHigh: m.boardHigh.toFixed(2),
 });

@@ -72,25 +72,27 @@ export const POSES = {
         lGrab: 1, grabPt: [-0.13, 0.04, -0.38], knee: [1, 0.15, 0], kneeBoard: 1,
     },
     // Classic indy (the first moment of the grab): board pulled up level in
-    // front, both knees tucked over the toes, back hand on the toe edge
-    // between the feet, front arm pointing out over the nose. Holding the
+    // front, both knees tucked over the toes, back hand on the toe edge just in
+    // front of the back boot (arm outside the back leg, wrapping the ankle),
+    // front arm pointing out over the nose. Holding the
     // grab bones it out into indyTweak. Solved with tools/solve-pose.mjs.
     indyGrab: {
-        hip: [0.02, 0.86, 0], torso: [0, 0, -0.21], head: [0, 0.3, -0.35],
-        board: [0.35, 0.96, -0.04], boardRot: [-0.14, 0, -0.22],
-        lHand: [0.32, 1.45, -0.72], rHand: [0.3, 0.6, 0.1],
-        rGrab: 1, rGrabPt: [0.13, 0.04, 0.05], knee: [1, 0.35, 0], kneeBoard: 1,
+        hip: [0.02, 0.86, 0], torso: [0.05, 0, -0.21], twist: 0.02, head: [0, 0.3, -0.35],
+        board: [0.25, 0.95, -0.25], boardRot: [-0.18, 0.18, -0.17],
+        lHand: [0.32, 1.46, -0.69], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.19], knee: [1, 0.35, 0], kneeBoard: 1,
     },
     // Boned indy (reference: textbook 90s indy): front leg straight (~95%)
     // poking the nose out and up, back knee bent up, back hand on the toe edge
-    // just in front of the back boot, torso upright, front arm slung back
+    // just in front of the back boot — the arm comes down OUTSIDE the back leg
+    // and wraps around the ankle, never between the knees — torso upright, front arm slung back
     // toward the tail to counter, head turned down spotting the landing.
     // Solved with tools/solve-pose.mjs.
     indyTweak: {
-        hip: [0.04, 0.86, 0.06], torso: [-0.33, 0, -0.16], twist: 0.28, head: [0.1, 0.9, -0.45],
-        board: [0.39, 0.95, -0.49], boardRot: [0.41, -0.52, 0.53],
-        lHand: [-0.19, 1.29, 0.25], rHand: [0.3, 0.6, 0.1],
-        rGrab: 1, rGrabPt: [0.13, 0.04, 0.15], knee: [1, 0.3, 0], kneeBoard: 1,
+        hip: [0.04, 0.86, 0.06], torso: [-0.31, 0, -0.14], twist: 0.24, head: [0.1, 0.9, -0.45],
+        board: [0.37, 0.95, -0.5], boardRot: [0.41, -0.52, 0.52],
+        lHand: [-0.18, 1.3, 0.25], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.19], knee: [1, 0.3, 0], kneeBoard: 1,
     },
     // Back hand reaches behind the back leg to the heel edge.
     stalefishGrab: {
