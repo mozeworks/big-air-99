@@ -512,11 +512,23 @@ export class Player {
             const n = normalAt(this.pos.x, this.pos.z, this.normal);
             v.addScaledVector(UP, -G * dt);
             v.addScaledVector(n, -v.dot(n));
+            // A tumbling body digs in: strong friction, more on steep ground,
+            // so a slam on a steep face doesn't turn into a 600 km/h slide.
             const sp = v.length();
-            if (sp > 1e-3) v.multiplyScalar(Math.max(0, sp - 0.85 * G * n.y * dt) / sp);
+            const friction = 0.85 * G * Math.max(0.6, n.y) + 0.08 * sp * sp;
+            if (sp > 1e-3) v.multiplyScalar(Math.max(0, sp - friction * dt) / sp);
             this.pos.y = groundY;
         }
+        const capped = v.length();
+        if (capped > 25) v.multiplyScalar(25 / capped);
         this.pos.addScaledVector(v, dt);
+        // The rope line catches a tumble before it reaches bear country.
+        const bx = BOUNDS.x + 1, s = -this.pos.z;
+        if (Math.abs(this.pos.x) > bx) { this.pos.x = Math.sign(this.pos.x) * bx; v.multiplyScalar(0.3); v.x = 0; }
+        if (s < BOUNDS.sMin - 1 || s > BOUNDS.sMax + 1) {
+            this.pos.z = -Math.min(BOUNDS.sMax + 1, Math.max(BOUNDS.sMin - 1, s));
+            v.multiplyScalar(0.3); v.z = 0;
+        }
         const gy = heightAt(this.pos.x, this.pos.z);
         if (this.pos.y < gy) this.pos.y = gy;
 
@@ -525,7 +537,8 @@ export class Player {
         this._q.setFromAxisAngle(this.tumble, spin * dt);
         this.rider.root.quaternion.premultiply(this._q);
 
-        if (!this.crashReported && this.crashT > 1.2 && v.length() < 1.5) {
+        // Settled — or, whatever the terrain is doing, call it after 4 s.
+        if (!this.crashReported && ((this.crashT > 1.2 && v.length() < 1.5) || this.crashT > 4)) {
             this.crashReported = true;
             this.events.onCrashSettled?.(this, this.crashResult);
         }
