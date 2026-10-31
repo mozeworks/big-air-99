@@ -160,7 +160,6 @@ function game() {
             updateBodyHud();
         },
         onCrashSettled(p, result) {
-            runScore = 0;
             startReplay(() => showCrashReport(result));
         },
         onFinish() {
@@ -206,8 +205,13 @@ function game() {
         if (e.code === 'KeyV') { retro = !retro; applyResolution(); toast(retro ? 'Retro pixels ON' : 'Retro pixels OFF'); }
         if (e.code === 'KeyM') { sound.setMuted(!sound.muted); toast(sound.muted ? 'Sound OFF' : 'Sound ON'); }
         if (e.code === 'Enter' && panelOpen()) {
-            if (body.hospitalized) { body.rehab(); }
-            restart();
+            // After a crash you get up and keep riding — unless the board
+            // snapped (hike up for a new one) or it's an ambulance job.
+            if (panelKind === 'crash' && !player.boardSnapped && !body.hospitalized) keepRiding();
+            else {
+                if (body.hospitalized) body.rehab();
+                restart();
+            }
         }
         if (e.code === 'KeyE' && panelOpen() && !body.hospitalized && body.injuries.length) {
             body.rest();
@@ -217,6 +221,16 @@ function game() {
     });
     addEventListener('keyup', e => { if (KEYS[e.code]) input[KEYS[e.code]] = false; });
     addEventListener('blur', () => { for (const k in input) input[k] = false; });
+
+    function keepRiding() {
+        hidePanel();
+        player.getUp();
+        replay.frames.length = 0;
+        replay.crashIndex = -1;
+        cam.mode = 'chase';
+        cam.snap = true;
+        toast('Back on your feet — W to ride');
+    }
 
     function restart() {
         hidePanel();
@@ -232,7 +246,9 @@ function game() {
 
     // -------------------------------------------------------- HUD
     function panelOpen() { return $('panel').classList.contains('show'); }
-    function showPanel(html, wide = false) {
+    let panelKind = null;
+    function showPanel(html, wide = false, kind = null) {
+        panelKind = kind;
         $('panel').innerHTML = html;
         $('panel').classList.toggle('wide', wide);
         $('panel').classList.add('show');
@@ -282,7 +298,9 @@ function game() {
                     ${body.injuries.length ? `<h2 class="hurt">Next run</h2>${effectsList(body.effects)}` : ''}
                 </div>
             </div>
-            <p class="keys"><b>ENTER</b> hike back up${body.injuries.length ? ' &nbsp; <b>E</b> rest a week' : ''}</p>`, true);
+            <p class="keys">${player.boardSnapped
+                ? '<b>ENTER</b> hike up for a new board'
+                : '<b>ENTER</b> get up and keep riding &nbsp; <b>⌫</b> back to the top'}${body.injuries.length ? ' &nbsp; <b>E</b> rest a week' : ''}</p>`, true, 'crash');
     }
 
     function showHospital(result) {

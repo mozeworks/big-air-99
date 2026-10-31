@@ -54,9 +54,9 @@ export class Player {
         this.reset();
     }
 
-    reset() {
-        const s = START_S;
-        this.pos.set(0, heightAt(0, -s), -s);
+    // Back to the top, or (s, x given) back on your feet somewhere mid-run.
+    reset(s = START_S, x = 0) {
+        this.pos.set(x, heightAt(x, -s), -s);
         this.vel.set(0, 0, 0);
         this.yaw = 0;
         this.switchStance = false;
@@ -453,6 +453,19 @@ export class Player {
         this.railCooldown = 0.6;
         this.pos.y += 0.05;
         this.leaveGround(popped);
+    }
+
+    // Get up after a crash and keep riding from (near) where you went down:
+    // on the groomed run, facing downhill, standing until you push off.
+    getUp() {
+        const s = Math.min(S_MAX - 45, Math.max(BOUNDS.sMin + 5, this.s));
+        const edge = COURSE_HALF_WIDTH - 2;
+        const x = Math.min(edge, Math.max(-edge, this.pos.x));
+        this.reset(s, x);
+    }
+
+    get boardSnapped() {
+        return this.state === 'crashed' && !!this.crashResult?.gear?.some(g => g.startsWith('board snapped'));
     }
 
     // ------------------------------------------------------------ bounds
