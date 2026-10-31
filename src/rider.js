@@ -8,7 +8,7 @@ import * as THREE from 'three';
 // and a grabbing hand stays on the board edge no matter how hard it's tweaked.
 
 const UP = new THREE.Vector3(0, 1, 0);
-const THIGH = 0.46, SHIN = 0.46, UPPER_ARM = 0.30, FOREARM = 0.29, SPINE = 0.52;
+const THIGH = 0.46, SHIN = 0.46, UPPER_ARM = 0.33, FOREARM = 0.32, SPINE = 0.52;
 const STANCE = 0.27;
 
 const COLORS = {
@@ -89,10 +89,10 @@ export const POSES = {
     // toward the tail to counter, head turned down spotting the landing.
     // Solved with tools/solve-pose.mjs.
     indyTweak: {
-        hip: [0.04, 0.86, 0.06], torso: [-0.31, 0, -0.14], twist: 0.24, head: [0.1, 0.9, -0.45],
-        board: [0.37, 0.95, -0.5], boardRot: [0.41, -0.52, 0.52],
-        lHand: [-0.18, 1.3, 0.25], rHand: [0.3, 0.6, 0.1],
-        rGrab: 1, rGrabPt: [0.13, 0.04, 0.19], knee: [1, 0.3, 0], kneeBoard: 1,
+        hip: [0.04, 0.95, 0.06], torso: [0.1, 0, -0.56], twist: 0.32, head: [0.1, 0.6, -0.3],
+        board: [0.55, 0.59, 0.28], boardRot: [-0.78, -0.59, -0.49],
+        lHand: [0.26, 1.45, -0.71], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.17], knee: [1, 0.3, 0], kneeBoard: 1, rElbow: [0.8, -0.5, 0.3],
     },
     // Back hand reaches behind the back leg to the heel edge.
     stalefishGrab: {
@@ -144,7 +144,8 @@ export const POSES = {
 };
 
 // Every pose gets every key so poses can be blended into each other.
-const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0, kneeLocal: 0, kneeBoard: 0 };
+const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0, kneeLocal: 0, kneeBoard: 0,
+    lElbow: [-0.2, -1, -0.5], rElbow: [-0.2, -1, 0.5] };
 for (const p of Object.values(POSES)) {
     for (const [k, v] of Object.entries(POSE_DEFAULTS)) if (!(k in p)) p[k] = Array.isArray(v) ? v.slice() : v;
 }
@@ -348,7 +349,10 @@ export class Rider {
                 grabW.set(grabPt[0], grabPt[1], grabPt[2]).applyMatrix4(this.board.matrix);
                 tgt.lerp(grabW, grabWeight);
             }
-            side.set(-0.2, -1, 0.5 * sideZ).applyQuaternion(tq);
+            // Elbow direction (torso frame). A pose can override it per arm,
+            // e.g. so an indy's grab arm bends out in front where it's seen.
+            const ep = sideZ < 0 ? p.lElbow : p.rElbow;
+            side.set(ep[0], ep[1], ep[2]).applyQuaternion(tq);
             solveIK(sh, tgt, UPPER_ARM, FOREARM, side, elbow, hand);
             placeLimb(upper, sh, elbow);
             placeLimb(fore, elbow, hand);
