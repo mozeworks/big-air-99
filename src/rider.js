@@ -81,15 +81,16 @@ export const POSES = {
         lHand: [0.32, 1.45, -0.72], rHand: [0.3, 0.6, 0.1],
         rGrab: 1, rGrabPt: [0.13, 0.04, 0.05], knee: [1, 0.35, 0], kneeBoard: 1,
     },
-    // Boned indy: front leg locked straight, nose poked up and out, back
-    // knee to the chest, back hand on the toe edge just inside the back
-    // boot, front arm flung back to counter, upper body twisted and laid back.
-    // Solved so the leg is ~96% straight and the hand really reaches.
+    // Boned indy (reference: textbook 90s indy): front leg straight (~95%)
+    // poking the nose out and up, back knee bent up, back hand on the toe edge
+    // just in front of the back boot, torso upright, front arm slung back
+    // toward the tail to counter, head turned down spotting the landing.
+    // Solved with tools/solve-pose.mjs.
     indyTweak: {
-        hip: [0.04, 0.86, 0.06], torso: [1, 1.13, -0.12], head: [0.2, -0.6, -0.45],
-        board: [0.44, 1.02, -0.4], boardRot: [0.73, -0.22, -0.36],
-        lHand: [0.62, 1.44, 0.58], rHand: [0.3, 0.6, 0.1],
-        rGrab: 1, rGrabPt: [0.13, 0.04, 0.14], knee: [0.6, 0.8, 0.3],
+        hip: [0.04, 0.86, 0.06], torso: [-0.33, 0, -0.16], twist: 0.28, head: [0.1, 0.9, -0.45],
+        board: [0.39, 0.95, -0.49], boardRot: [0.41, -0.52, 0.53],
+        lHand: [-0.19, 1.29, 0.25], rHand: [0.3, 0.6, 0.1],
+        rGrab: 1, rGrabPt: [0.13, 0.04, 0.15], knee: [1, 0.3, 0], kneeBoard: 1,
     },
     // Back hand reaches behind the back leg to the heel edge.
     stalefishGrab: {

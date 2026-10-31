@@ -71,10 +71,11 @@ function measure(x, cfg) {
         arch: Math.atan2(-up[0], up[1]),                                       // + = leaning back
         boardTilt: Math.acos(Math.max(-1, Math.min(1, app(B, [0, 1, 0])[1]))), // 0 = flat
         noseUp: Math.asin(app(B, [0, 0, -1])[1]),
+        noseZ: app(B, [0, 0, -1])[2],                                          // -1 = nose pointing forward (-Z)
         boardFwd: dot(sub(center, hip), fwd),                                  // < 0 = behind the back
         boardHigh: center[1] - hip[1],
         clear: Math.min(len(sub(center, chest)), len(sub(center, hip))),
-        T, up, fwd, fSh, bSh,
+        T, up, fwd, fSh, bSh, twist,
     };
 }
 
@@ -116,6 +117,28 @@ const CONFIGS = {
             + 20 * sq(under(m.boardFwd, 0.1))                                   // board out in front
             + 30 * sq(under(m.clear, 0.3)),
         freeArm: () => norm([0.35, 0.25, -0.9]),                              // pointing out over the nose
+        freeShoulder: m => m.fSh,
+    },
+    // Boned indy (reference: white tee, green pants, orange board): front leg
+    // locked straight poking the nose out, back knee bent up, back hand on the
+    // toe edge just in front of the back toes between the feet, torso upright,
+    // board fairly level with the nose a touch up, front arm slung back
+    // behind toward the tail to counter, head down spotting the landing.
+    indyTweak: {
+        hip: [0.04, 0.86, 0.06], knee: [1, 0.3, 0], hand: 'back', grabPt: [0.13, 0.04, 0.15],
+        start: [0, 0, -0.1, 0.3, 0.6, -0.2, -0.3, 0, 0.2],
+        cost: m => 80 * sq(m.f.ext - 0.985) + 30 * sq(m.b.ext - 0.55)
+            + 4000 * sq(under(m.f.overToes, 0.03)) + 4000 * sq(under(m.b.overToes, 0.08))
+            + 60 * sq(m.reach - 0.92) + 300 * sq(over(m.reach, 0.99))
+            + 400 * sq(under(m.armClear, 0.08))
+            + 25 * sq(m.arch + 5 * D)                                           // upright, a touch forward
+            + 8 * sq(m.boardTilt - 20 * D) + 15 * sq(m.noseUp - 28 * D)         // fairly level, nose a touch up
+            + 20 * sq(under(m.boardFwd, 0.1))                                   // board out under/in front
+            + 25 * sq(m.boardHigh + 0.12)                                        // board below the hips, leg angled down
+            + 200 * sq(over(m.noseZ, -0.8))                                     // nose stays forward (no flipped board)
+            + 30 * sq(under(m.clear, 0.3))
+            + 3 * sq(m.twist),
+        freeArm: () => norm([-0.4, 0.1, 0.9]),                                // slung back toward the tail
         freeShoulder: m => m.fSh,
     },
 };
