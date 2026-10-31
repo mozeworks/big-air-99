@@ -62,6 +62,9 @@ The arrow keys also steer, if you prefer them.
   flip, casing the table, losing it on the rail, riding into the rail, or
   hitting a tree are crashes too.
 - Every slam gets a slow-mo replay, then an X-ray of what you hurt.
+- Gear comes off in crashes — beanie, goggles, gloves, and on hard slams the
+  board flies off (binding ripped out) or snaps in half. Head-first crashes
+  lose the goggles and beanie; the crash report lists what you lost.
 - What your injuries do is spelled out in control terms — on the start
   screen before each run ("Ollie 18% weaker", "Grabs lock in slower", "Can
   only tweak to 70%"…), on the crash report next to each new injury, and in
@@ -83,4 +86,6 @@ The arrow keys also steer, if you prefer them.
 - `src/injury.js` — injury model and persistence.
 - `src/xray.js` — the X-ray film.
 - `src/bear.js` — the off-trail bear.
+- `src/debris.js` — gear and board pieces flying off in a crash.
+- `src/audio.js` — all sound, synthesized with WebAudio.
 - `src/main.js` — renderer, cameras (chase + photo cam), HUD, replay, demo autopilot.

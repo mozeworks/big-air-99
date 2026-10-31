@@ -22,6 +22,13 @@ export class Sound {
     init(ctx) {
         this.ctx = ctx;
         const c = ctx;
+        // When the tab is hidden the game stops updating, so stop the sound too
+        // (otherwise the last snow hiss would play on forever).
+        if (typeof document !== 'undefined' && ctx.suspend) {
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) ctx.suspend(); else ctx.resume();
+            });
+        }
         this.master = c.createGain();
         this.master.gain.value = this.muted ? 0 : 0.8;
         // Gentle limiter so stacked hits don't clip.
@@ -211,6 +218,15 @@ export class Sound {
             this.voice(t + 0.05, 0.3, 0.4, 200, 120, 'o');                     // "oof"
             if (Math.random() < 0.5) this.bleep(t + 0.5, 0.28);
         }
+    }
+
+    // The board snapping: a sharp crack with a woody thunk.
+    snap() {
+        if (!this.ctx) return;
+        const t = this.now;
+        this.burst(t, 0.06, 1.0, 'highpass', 2500, 1);
+        this.burst(t + 0.01, 0.2, 0.6, 'bandpass', 600, 3);
+        this.tone(t, 0.12, 0.4, 'square', 220, 90);
     }
 
     bear() {

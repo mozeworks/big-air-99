@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FEATURES, CLIFF_X, BOUNDS, COURSE_HALF_WIDTH } from './course.js';
 import { Bear } from './bear.js';
+import { Debris } from './debris.js';
 import { POSES, GRABS, clonePose, blendPose, Rider } from './rider.js';
 
 const G = 9.81;
@@ -40,6 +41,7 @@ export class Player {
         this.rider = new Rider();
         scene.add(this.rider.root);
         this.bear = new Bear(scene);
+        this.debris = new Debris(scene);
 
         this.pos = new THREE.Vector3();
         this.vel = new THREE.Vector3();
@@ -84,6 +86,8 @@ export class Player {
         this.offTrail = false;
         this.offTrailT = 0;
         this.bear?.hide();
+        this.debris?.clear();
+        this.rider.setGear(null);
         this.rider.flail = 0;
         this.rider.pose = clonePose(POSES.ride);
         this.rider.root.quaternion.identity();
@@ -509,12 +513,42 @@ export class Player {
 
     // ------------------------------------------------------------ crash
 
+    // Knock gear loose depending on how hard and how you went down. Returns
+    // what was lost, for the crash report.
+    loseGear(type, energy) {
+        const k = Math.min(1, Math.max(0, (energy - 6) / 8));
+        const headFirst = { flip: 1, tree: 1, grab: 0.8, bear: 0.7, edge: 0.6 }[type] ?? 0.4;
+        const gear = this.rider.gear, lost = [];
+        const fling = (name, label, up, spread, spin) => {
+            const v = this.vel.clone().multiplyScalar(0.7);
+            v.x += (Math.random() - 0.5) * spread; v.z += (Math.random() - 0.5) * spread; v.y += up;
+            this.debris.spawn(gear[name], v, spin);
+            gear[name].visible = false;
+            lost.push(label);
+        };
+        if (Math.random() < 0.05 + k * 0.7 * headFirst) fling('beanie', 'beanie', 4, 3, 10);
+        if (Math.random() < k * 0.8 * headFirst) fling('goggles', 'goggles', 3.5, 3, 12);
+        const gloveOdds = type === 'bear' ? 0.6 : k * 0.35;
+        if (Math.random() < gloveOdds) fling('lGlove', 'left glove', 3, 4, 14);
+        if (Math.random() < gloveOdds) fling('rGlove', 'right glove', 3, 4, 14);
+        const bigHit = energy >= 14 && ['flat', 'casedeck', 'tree', 'flip'].includes(type);
+        if (bigHit && Math.random() < 0.55) {
+            this.debris.spawnSnapped(gear.board, this.vel.clone().multiplyScalar(0.6));
+            gear.board.visible = false;
+            lost.push('board snapped in half');
+        } else if (energy >= 10 && Math.random() < 0.3) {
+            fling('board', 'board (binding ripped out)', 3, 3, 7);
+        }
+        return lost;
+    }
+
     startCrash(type, energy) {
         this.state = 'crashed';
         this.crashT = 0;
         this.crashReported = false;
         this.crashType = type;
         this.crashResult = this.body.crash(type, energy);
+        this.crashResult.gear = this.loseGear(type, energy);
         this.crashEnergy = energy;
         const dir = this._a.copy(this.vel).setY(0).normalize();
         this.tumble.crossVectors(UP, dir).normalize();
@@ -528,6 +562,7 @@ export class Player {
 
     stepCrash(dt) {
         this.crashT += dt;
+        this.debris.update(dt, heightAt);
         const v = this.vel;
         const groundY = heightAt(this.pos.x, this.pos.z);
         if (this.pos.y > groundY + 0.05) {

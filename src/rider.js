@@ -272,6 +272,12 @@ export class Rider {
         const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.122, 0.122, 0.035, 8), mat(0x111111));
         strap.position.y = 0.01;
         this.head.add(skull, beanie, strap, goggles);
+        // Gear that can come off in a crash (see Debris).
+        this.gogglesSet = new THREE.Group();
+        this.head.remove(strap, goggles);
+        this.gogglesSet.add(strap, goggles);
+        this.head.add(this.gogglesSet);
+        this.gear = { beanie, goggles: this.gogglesSet, lGlove: this.lGlove, rGlove: this.rGlove, board: this.board };
         this.rig.add(this.head);
 
         for (const o of this.rig.children) o.traverse(m => { m.castShadow = false; });
@@ -283,6 +289,16 @@ export class Rider {
         this._e = new THREE.Euler();
         this._m = new THREE.Matrix4();
         this.flail = 0;
+    }
+
+    gearState() {
+        const s = {};
+        for (const k in this.gear) s[k] = this.gear[k].visible;
+        return s;
+    }
+
+    setGear(state) {
+        for (const k in this.gear) this.gear[k].visible = state ? state[k] : true;
     }
 
     setGoofy(goofy) {

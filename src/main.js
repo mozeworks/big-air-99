@@ -152,6 +152,7 @@ function game() {
         },
         onCrash(p, type, energy) {
             sound.crash(type, Math.min(1, Math.max(0, (energy - 6) / 10)), body.hospitalized);
+            if (p.crashResult.gear.some(g => g.startsWith('board snapped'))) sound.snap();
             replay.crashIndex = replay.frames.length;
             spray.emit(p.pos, { x: p.vel.x * 0.4, y: 2, z: p.vel.z * 0.4 }, 160, 5, 3);
             cam.shake = 1;
@@ -261,12 +262,17 @@ function game() {
                 : '');
     }
 
+    function gearLine(result) {
+        return result.gear?.length ? `<p class="gear">Lost: ${result.gear.join(' · ')}</p>` : '';
+    }
+
     function showCrashReport(result) {
         const fresh = result.injuries;
         if (body.hospitalized) return showHospital(result);
         showPanel(`
             <h1 class="red">WIPEOUT</h1>
             <p class="sub">${result.label} — impact ${player.crashEnergy.toFixed(1)} m/s</p>
+            ${gearLine(result)}
             <div class="xray-wrap">
                 ${xraySVG(body.injuries, fresh)}
                 <div>
@@ -285,6 +291,7 @@ function game() {
         showPanel(`
             <h1 class="red">AMBULANCE</h1>
             <p class="sub">${result ? result.label + '. ' : ''}You're not riding out of this one.</p>
+            ${result ? gearLine(result) : ''}
             <div class="xray-wrap">
                 ${xraySVG(body.injuries, result ? result.injuries : [])}
                 <div>
@@ -475,6 +482,8 @@ function game() {
             pose: clonePose(r.pose),
             flail: r.flail,
             bear: player.bear.snapshot(),
+            gear: player.rider.gearState(),
+            debris: player.debris.snapshot(),
         });
         while (replay.frames.length && replay.frames[0].t < time - REPLAY_SECONDS) {
             replay.frames.shift();
@@ -521,6 +530,8 @@ function game() {
         r.flail = a.flail;
         r.update(replay.cursor);
         if (a.bear) player.bear.restore(a.bear);
+        r.setGear(a.gear);
+        player.debris.restore(a.debris);
         _p.lerpVectors(a.pos, b.pos, k);
 
         // Orbit the rider, drifting with them toward the crash site.
