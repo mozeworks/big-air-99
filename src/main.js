@@ -129,6 +129,10 @@ function game() {
             runScore += rail.points;
             showTrick({ name: rail.name, points: rail.points }, 'rail');
         },
+        onBear(p) {
+            showTrick({ name: 'BEAR!', points: 0 }, 'crash');
+            cam.shake = 0.6;
+        },
         onCrash(p, type, energy) {
             replay.crashIndex = replay.frames.length;
             spray.emit(p.pos, { x: p.vel.x * 0.4, y: 2, z: p.vel.z * 0.4 }, 160, 5, 3);
@@ -430,6 +434,7 @@ function game() {
             quat: r.root.quaternion.clone(),
             pose: clonePose(r.pose),
             flail: r.flail,
+            bear: player.bear.snapshot(),
         });
         while (replay.frames.length && replay.frames[0].t < time - REPLAY_SECONDS) {
             replay.frames.shift();
@@ -475,6 +480,7 @@ function game() {
         r.pose = replayPose;
         r.flail = a.flail;
         r.update(replay.cursor);
+        if (a.bear) player.bear.restore(a.bear);
         _p.lerpVectors(a.pos, b.pos, k);
 
         // Orbit the rider, drifting with them toward the crash site.
@@ -570,6 +576,7 @@ function game() {
         $('lip').textContent = warn ? `${next.name} ${Math.round(toNext)} m · MAX ${next.maxKmh}` : '';
         $('speed').parentElement.classList.toggle('hot', !!warn && kmh > next.maxKmh);
         $('balance').classList.toggle('show', player.state === 'rail');
+        $('oob').classList.toggle('show', player.oobWarn && !player.bearing && player.state !== 'crashed');
         if (player.state === 'rail') $('balance-dot').style.left = `${50 + player.rail.balance * 50}%`;
         $('slowmo').classList.toggle('show', timeScale < 0.8);
 

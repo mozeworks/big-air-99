@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FEATURES, CLIFF_X } from './course.js';
+import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FEATURES, CLIFF_X, BOUNDS } from './course.js';
+import { Bear } from './bear.js';
 import { POSES, GRABS, clonePose, blendPose, Rider } from './rider.js';
 
 const G = 9.81;
@@ -26,6 +27,7 @@ const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const GRAB_KEYS = ['method', 'indy', 'stalefish', 'japan'];
 const GRAB_NAMES = { method: 'Method', indy: 'Indy', stalefish: 'Stalefish', japan: 'Japan' };
+const NO_INPUT = { left: false, right: false, up: false, down: false, jump: false };
 const freshGrab = () => ({ held: false, type: null, time: 0, hold: 0, maxTweak: 0, used: false, done: [] });
 
 export class Player {
@@ -35,6 +37,7 @@ export class Player {
         this.events = events;
         this.rider = new Rider();
         scene.add(this.rider.root);
+        this.bear = new Bear(scene);
 
         this.pos = new THREE.Vector3();
         this.vel = new THREE.Vector3();
@@ -75,6 +78,9 @@ export class Player {
         this.rail = null;
         this.railCooldown = 0;
         this.layout = 0;
+        this.bearing = false;
+        this.oobWarn = false;
+        this.bear?.hide();
         this.rider.flail = 0;
         this.rider.pose = clonePose(POSES.ride);
         this.rider.root.quaternion.identity();
@@ -102,17 +108,20 @@ export class Player {
         } else if (this.state === 'crashed') {
             this.stepCrash(dt);
         } else {
+            // Once a bear is coming you've lost control: just ride it out.
+            const ctl = this.bearing ? NO_INPUT : input;
             const h = dt / SUBSTEPS;
             for (let i = 0; i < SUBSTEPS; i++) {
-                if (this.state === 'ride') this.stepGround(h, input, eff);
-                else if (this.state === 'air') this.stepAir(h, input, eff);
-                else if (this.state === 'rail') this.stepRail(h, input, eff);
+                if (this.state === 'ride') this.stepGround(h, ctl, eff);
+                else if (this.state === 'air') this.stepAir(h, ctl, eff);
+                else if (this.state === 'rail') this.stepRail(h, ctl, eff);
                 if (this.state === 'ride' || this.state === 'air') this.checkRail();
                 if (this.state === 'crashed') break;
             }
             this.railCooldown = Math.max(0, this.railCooldown - dt);
             if (this.state !== 'crashed') this.checkTrees();
-            if (this.state === 'ride' && this.s > S_MAX - 40 && !this.finished) {
+            if (this.state !== 'crashed') this.checkBounds(dt);
+            if (this.state === 'ride' && this.s > S_MAX - 40 && !this.finished && !this.bearing) {
                 this.finished = true;
                 this.events.onFinish?.();
             }
@@ -437,6 +446,36 @@ export class Player {
         this.railCooldown = 0.6;
         this.pos.y += 0.05;
         this.leaveGround(popped);
+    }
+
+    // ------------------------------------------------------------ bounds
+
+    checkBounds(dt) {
+        const x = Math.abs(this.pos.x), s = this.s, w = BOUNDS.warn;
+        this.oobWarn = x > BOUNDS.x - w || s < BOUNDS.sMin + w || s > BOUNDS.sMax - w;
+        if (this.bearing) {
+            if (this.bear.update(dt, this.pos, heightAt)) {
+                this.bear.hold();
+                // Knocked away from the bear.
+                const away = this._a.subVectors(this.pos, this.bear.root.position).setY(0).normalize();
+                this.vel.addScaledVector(away, 4).y += 2;
+                this.startCrash('bear', 9 + Math.random() * 3);
+            }
+            return;
+        }
+        if (x > BOUNDS.x || s < BOUNDS.sMin || s > BOUNDS.sMax) {
+            // A bear comes out of the trees on the far side, ahead of you.
+            const side = x > BOUNDS.x ? Math.sign(this.pos.x) : 0;
+            const ahead = this.forward(this._b);
+            const from = this.pos.clone().addScaledVector(ahead, 6);
+            from.x += side * 8;
+            if (!side) from.addScaledVector(ahead, 4);
+            from.y = heightAt(from.x, from.z);
+            this.bearing = true;
+            this.bear.charge(from, 1.1);
+            this.endGrab();
+            this.events.onBear?.(this);
+        }
     }
 
     checkTrees() {

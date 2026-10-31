@@ -56,6 +56,10 @@ export const FEATURES = [
 
 // A straight rail on the run-in, right of center. Ollie onto it.
 export const RAIL = { x: 7, s0: 80, s1: 108, height: 0.45 };
+
+// Out of bounds. Between the groomed run and the rope line you can explore
+// the trees; past the rope (or off either end of the course) is bear country.
+export const BOUNDS = { x: 40, sMin: -30, sMax: 790, warn: 6 };
 export const COURSE_HALF_WIDTH = 16;
 export const S_MIN = -40;
 export const S_MAX = 800;

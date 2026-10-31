@@ -32,6 +32,11 @@ km/h**, ~9 m rock face) or the **chute** on the right. Signs and the HUD tell
 you what's next and how fast you can hit it; your speed flashes red when
 you're too hot.
 
+You're free to explore the trees off the groomed run, but there's an orange
+rope line (with **AREA CLOSED — BEAR COUNTRY** signs) 40 m out on each side and
+across the top and bottom. Get close and the HUD warns you; cross it and a bear
+comes out of the trees.
+
 ## Controls
 
 | Key | On snow | In the air | On the rail |
@@ -76,4 +81,5 @@ The arrow keys also steer, if you prefer them.
 - `src/player.js` — physics, carving, ollie, spins, grabs, landing evaluation.
 - `src/injury.js` — injury model and persistence.
 - `src/xray.js` — the X-ray film.
+- `src/bear.js` — the out-of-bounds bear.
 - `src/main.js` — renderer, cameras (chase + photo cam), HUD, replay, demo autopilot.

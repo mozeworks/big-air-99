@@ -21,6 +21,7 @@ const CRASH_TYPES = {
     tree: { label: 'Hit a tree', parts: { head: 4, ribs: 3, shoulder: 2, leg: 2, back: 1 } },
     casedeck: { label: 'Cased the deck', parts: { ankle: 3, knee: 2, back: 2, ribs: 1, wrist: 1 } },
     flip: { label: 'Under-rotated the flip — landed on your head', parts: { head: 4, back: 3.5, shoulder: 2, wrist: 1.5 } },
+    bear: { label: 'Mauled by a bear out of bounds', parts: { ribs: 3, shoulder: 3, back: 1, leg: 0.7, head: 1 } },
     rail: { label: 'Slipped off the rail', parts: { ribs: 3.5, back: 2, shoulder: 2, wrist: 1.5, head: 1, knee: 1 } },
 };
 

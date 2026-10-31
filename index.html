@@ -23,6 +23,8 @@
     @keyframes hot { 50% { color: #fff; } }
     #balance { position: absolute; bottom: 150px; left: 50%; width: 260px; margin-left: -130px; height: 14px; border: 2px solid #fff; background: linear-gradient(90deg, #ff3b30, #ffc931 25%, #4ade4a 42%, #4ade4a 58%, #ffc931 75%, #ff3b30); opacity: 0; transition: opacity .15s; }
     #balance.show { opacity: 1; }
+    #oob { position: absolute; top: 16%; left: 0; right: 0; text-align: center; font: italic 900 clamp(18px, 3vw, 30px) Impact, 'Arial Black', sans-serif; color: #ff3b30; letter-spacing: 2px; opacity: 0; }
+    #oob.show { opacity: 1; animation: blink 0.6s steps(2) infinite; }
     #balance-dot { position: absolute; top: -6px; width: 6px; height: 22px; margin-left: -3px; background: #111; border: 2px solid #fff; left: 50%; }
     #balance::after { content: 'BALANCE ← →'; position: absolute; top: 18px; left: 0; right: 0; text-align: center; font: bold 11px Verdana; letter-spacing: 3px; }
     .score { font: italic 900 34px Impact, 'Arial Black', sans-serif; }
@@ -125,6 +127,7 @@
     <div id="trick"></div>
     <div id="slowmo">SLOW-MO</div>
     <div id="balance"><div id="balance-dot"></div></div>
+    <div id="oob">⚠ OUT OF BOUNDS — BEAR COUNTRY ⚠</div>
     <div id="toast"></div>
     <div class="help">
         <b>A D</b> carve / spin &nbsp; <b>W S</b> tuck · brake / flip in air &nbsp; <b>SPACE</b> ollie &nbsp;

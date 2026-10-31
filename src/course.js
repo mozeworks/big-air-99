@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
     profileHeight, profileGrade, ledgeDelta, LIP_S, KICKER_START_S, KNUCKLE_S, SWEET_SPOT,
-    COURSE_HALF_WIDTH, S_MIN, S_MAX, LIP2_S, CLIFF_S, CLIFF_X, LEDGE_START_S, FEATURES, RAIL,
+    COURSE_HALF_WIDTH, S_MIN, S_MAX, LIP2_S, CLIFF_S, CLIFF_X, LEDGE_START_S, FEATURES, RAIL, BOUNDS,
 } from './profile.js';
 
 const W = COURSE_HALF_WIDTH;
@@ -51,7 +51,7 @@ export function normalAt(x, z, out = _n) {
     return out.set(-hx / (2 * e), 1, -hz / (2 * e)).normalize();
 }
 
-export { LIP_S, KICKER_START_S, KNUCKLE_S, SWEET_SPOT, W as COURSE_HALF_WIDTH, S_MIN, S_MAX, profileGrade, LIP2_S, CLIFF_S, CLIFF_X, FEATURES, RAIL };
+export { LIP_S, KICKER_START_S, KNUCKLE_S, SWEET_SPOT, W as COURSE_HALF_WIDTH, S_MIN, S_MAX, profileGrade, LIP2_S, CLIFF_S, CLIFF_X, FEATURES, RAIL, BOUNDS };
 
 // ---------------------------------------------------------------- mesh
 
@@ -237,6 +237,58 @@ function buildSigns(scene) {
     }
 }
 
+// Rope line with bamboo posts along the out-of-bounds edge, plus warning signs.
+function buildBoundary(scene) {
+    const postGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.3, 5).translate(0, 0.65, 0);
+    const postMat = new THREE.MeshLambertMaterial({ color: 0xd9b45a });
+    const ropeMat = new THREE.LineBasicMaterial({ color: 0xff5a1f });
+    const step = 6;
+    for (const side of [-1, 1]) {
+        const x = side * BOUNDS.x;
+        const pts = [];
+        for (let s = BOUNDS.sMin; s <= BOUNDS.sMax; s += step) {
+            const y = heightAt(x, -s);
+            const post = new THREE.Mesh(postGeo, postMat);
+            post.position.set(x, y, -s);
+            scene.add(post);
+            pts.push(new THREE.Vector3(x, y + 1.1, -s));
+        }
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), ropeMat));
+    }
+    // Across the top and bottom of the course too.
+    for (const s of [BOUNDS.sMin, BOUNDS.sMax]) {
+        const pts = [];
+        for (let x = -BOUNDS.x; x <= BOUNDS.x; x += step) pts.push(new THREE.Vector3(x, heightAt(x, -s) + 1.1, -s));
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), ropeMat));
+    }
+    const signs = [];
+    for (let s = 40; s < BOUNDS.sMax; s += 90) signs.push([s, -1], [s + 45, 1]);
+    for (const [s, side] of signs) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 160;
+        const g = canvas.getContext('2d');
+        g.fillStyle = '#c4161c'; g.fillRect(0, 0, 256, 160);
+        g.strokeStyle = '#fff'; g.lineWidth = 8; g.strokeRect(8, 8, 240, 144);
+        g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = "italic 900 34px Impact, 'Arial Black', sans-serif";
+        g.fillText('AREA CLOSED', 128, 50);
+        g.font = "bold 22px Verdana, sans-serif";
+        g.fillText('BEAR COUNTRY', 128, 98);
+        g.fillText('BEYOND ROPE', 128, 124);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.magFilter = THREE.NearestFilter;
+        const board = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+        board.position.y = 1.9;
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 5).translate(0, 1.0, 0), new THREE.MeshLambertMaterial({ color: 0x333333 }));
+        const grp = new THREE.Group();
+        grp.add(board, post);
+        const x = side * (BOUNDS.x - 1.5);
+        grp.position.set(x, heightAt(x, -s), -s);
+        grp.rotation.y = side * Math.PI / 2;   // face back toward the run
+        scene.add(grp);
+    }
+}
+
 function buildRail(scene) {
     const a = new THREE.Vector3(RAIL.x, heightAt(RAIL.x, -RAIL.s0) + RAIL.height, -RAIL.s0);
     const b = new THREE.Vector3(RAIL.x, heightAt(RAIL.x, -RAIL.s1) + RAIL.height, -RAIL.s1);
@@ -287,6 +339,7 @@ export function buildCourse(scene) {
     const trees = buildTrees(scene);
     buildFlags(scene);
     buildSigns(scene);
+    buildBoundary(scene);
     const rail = buildRail(scene);
     buildBackdrop(scene);
 
