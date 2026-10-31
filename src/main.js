@@ -331,6 +331,18 @@ function game() {
     if (body.hospitalized) showHospital(); else showTitle();
 
     // -------------------------------------------------------- camera
+    // Step the rider's flight forward until it meets the snow.
+    const _lp = new THREE.Vector3(), _lv = new THREE.Vector3();
+    function predictLanding(p) {
+        _lp.copy(p.pos); _lv.copy(p.vel);
+        const h = 0.05;
+        for (let t = 0; t < 6; t += h) {
+            _lv.y -= 9.81 * h;
+            _lp.addScaledVector(_lv, h);
+            if (_lp.y <= heightAt(_lp.x, _lp.z)) return { pos: _lp.clone(), t: t + h };
+        }
+        return null;
+    }
     const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
     function updateCamera(dt, time) {
         const p = player;
@@ -347,9 +359,14 @@ function game() {
             sky.position.copy(camera.position);
             return;
         }
-        // Stay on the photographer until the rider is coming down to land.
-        const timeToGround = p.vel.y < 0 ? p.heightAboveGround / -p.vel.y : Infinity;
-        if (cam.mode === 'photo' && (p.state !== 'air' || timeToGround < 0.7)) {
+        // Where (and when) the rider will come down, for lining up landings.
+        const landing = p.state === 'air' ? predictLanding(p) : null;
+        // Hold the photographer shot around the top of the jump, then hand
+        // back to the chase cam in good time to set up the landing — or
+        // sooner if the rider has flown well away from the photographer.
+        if (cam.mode === 'photo' && (p.state !== 'air'
+            || (p.vel.y < 0 && landing && landing.t < 1.6)
+            || camera.position.distanceTo(p.pos) > 18)) {
             cam.mode = 'chase';
             cam.snap = true;
         }
@@ -365,13 +382,17 @@ function game() {
             else p.forward(tmp);
             cam.dir.lerp(tmp, cam.snap ? 1 : 1 - Math.exp(-3 * dt)).normalize();
 
-            const back = p.state === 'crashed' ? 9 : 7.2;
+            // In the air, rise with the rider's height so the landing is in view.
+            const lift = landing ? Math.min(6, p.heightAboveGround * 0.4) : 0;
+            const back = p.state === 'crashed' ? 9 : 7.2 + lift * 0.3;
             tmp2.copy(p.pos).addScaledVector(cam.dir, -back);
-            tmp2.y = Math.max(p.pos.y + 2.7, heightAt(tmp2.x, tmp2.z) + 1.4);
+            tmp2.y = Math.max(p.pos.y + 2.7 + lift, heightAt(tmp2.x, tmp2.z) + 1.4);
             if (cam.snap) camera.position.copy(tmp2);
             else camera.position.lerp(tmp2, 1 - Math.exp(-7 * dt));
 
             tmp.copy(p.pos).addScaledVector(cam.dir, 5); tmp.y = p.pos.y + 0.7;
+            // Coming down: aim partway at the landing spot.
+            if (landing && p.vel.y < 0) tmp.lerp(landing.pos, Math.min(0.45, 0.15 + p.heightAboveGround * 0.04));
             if (cam.snap) cam.look.copy(tmp); else cam.look.lerp(tmp, 1 - Math.exp(-10 * dt));
             const fovTarget = 60 + Math.min(14, p.speed * 0.45);
             camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 3);
