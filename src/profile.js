@@ -32,9 +32,8 @@ export const GRADE_POINTS = [
     [552, -1.2],    // chute rolls over, ~50° under the cliff
     [592, -1.2],
     [625, -0.25],
-    [650, -0.14],   // runout keeps ~7° of pitch so you cruise (~50 km/h)
-    [705, -0.12],   // through the finish instead of grinding to a halt
-    [740, -0.04],
+    [650, -0.14],   // short runout with real pitch: the finish (S_MAX - 40)
+    [695, -0.08],   // comes ~30 m after the chute, before you can slow down
 ];
 
 export const LIP_S = 206.5;
@@ -60,10 +59,10 @@ export const RAIL = { x: 7, s0: 80, s1: 108, height: 0.45 };
 
 // Out of bounds. Between the groomed run and the rope line you can explore
 // the trees; past the rope (or off either end of the course) is bear country.
-export const BOUNDS = { x: 40, sMin: -30, sMax: 730, warn: 6 };
+export const BOUNDS = { x: 40, sMin: -30, sMax: 685, warn: 6 };
 export const COURSE_HALF_WIDTH = 16;
 export const S_MIN = -40;
-export const S_MAX = 740;
+export const S_MAX = 695;
 
 const STEP = 0.1;
 const table = [];
