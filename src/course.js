@@ -291,7 +291,7 @@ function buildBoundary(scene) {
         grp.add(board, post);
         const x = side * dist;
         grp.position.set(x, heightAt(x, -s), -s);
-        grp.rotation.y = side * Math.PI / 2;   // face back toward the run
+        grp.rotation.y = -side * Math.PI / 2;  // face back toward the run
         scene.add(grp);
     }
 }
