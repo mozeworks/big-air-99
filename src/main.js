@@ -233,7 +233,17 @@ function game() {
         toast('Back on your feet — W to ride');
     }
 
+    // Backspace can come mid-replay or mid-rescue: drop them without
+    // running what they'd show next.
+    function cancelScenes() {
+        replay.active = false;
+        replay.done = null;
+        document.body.classList.remove('replaying');
+        if (rescue.active) rescue.stop();
+    }
+
     function restart() {
+        cancelScenes();
         hidePanel();
         if (body.hospitalized) { showHospital(); return; }
         player.reset();
@@ -537,6 +547,7 @@ function game() {
         replay.cursor += real * REPLAY_SPEED;
         if (replay.cursor >= replay.end) return endReplay();
         const f = replay.frames;
+        if (!f.length) return endReplay();
         let i = 0;
         while (i < f.length - 2 && f[i + 1].t < replay.cursor) i++;
         const a = f[i], b = f[i + 1] || a;
