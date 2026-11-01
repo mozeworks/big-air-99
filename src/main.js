@@ -175,7 +175,7 @@ function game() {
             <h1>RUN COMPLETE</h1>
             <div class="big">${runScore.toLocaleString()} pts</div>
             <p>Best: ${best.toLocaleString()}</p>
-            <p class="keys"><b>ENTER</b> hike back up</p>`);
+            <p class="keys"><b>ENTER</b> hike back up</p>`, false, 'finish');
     }
 
     const player = new Player(scene, course, body, events);
@@ -268,6 +268,7 @@ function game() {
         panelKind = kind;
         $('panel').innerHTML = html;
         $('panel').classList.toggle('wide', wide);
+        $('panel').classList.toggle('top', kind === 'finish');
         $('panel').classList.add('show');
     }
     function hidePanel() { $('panel').classList.remove('show'); }
