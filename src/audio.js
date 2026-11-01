@@ -303,6 +303,15 @@ export class Sound {
         }
     }
 
+    // Finish line: two "woo!"s and a victory jingle.
+    cheer() {
+        if (!this.ctx) return;
+        const t = this.now;
+        this.voice(t + 0.4, 0.5, 0.3, 420, 700, 'e');
+        this.voice(t + 0.75, 0.55, 0.28, 480, 820, 'e');
+        [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone(t + 0.1 + i * 0.11, 0.2, 0.1, 'square', f));
+    }
+
     // Ski patrol whistle.
     patrol() {
         if (!this.ctx) return;

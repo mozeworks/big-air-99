@@ -31,6 +31,7 @@ Rail (right side of the run-in) → big table-top kicker → step-down
 km/h**, ~9 m rock face) or the **chute** on the right. Signs and the HUD tell
 you what's next and how fast you can hit it; your speed flashes red when
 you're too hot.
+Make it to the bottom in one piece and your fans run out to celebrate.
 
 You're free to explore the trees off the groomed run — but that's **bear
 country**. The HUD warns you while you're off-trail, and after a couple of
@@ -92,5 +93,6 @@ The arrow keys also steer, if you prefer them.
 - `src/bear.js` — the off-trail bear.
 - `src/debris.js` — gear and board pieces flying off in a crash.
 - `src/rescue.js` — the snowmobile and helicopter rescues.
+- `src/celebrate.js` — the finish-line celebration.
 - `src/audio.js` — all sound, synthesized with WebAudio.
 - `src/main.js` — renderer, cameras (chase + photo cam), HUD, replay, demo autopilot.

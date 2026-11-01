@@ -5,6 +5,7 @@ import { Body, effectsOf, describeEffects } from './injury.js';
 import { buildSky, BlobShadow, Spray } from './fx.js';
 import { xraySVG } from './xray.js';
 import { Rescue } from './rescue.js';
+import { Celebration } from './celebrate.js';
 import { Sound } from './audio.js';
 import { POSES, GRABS, Rider, clonePose, blendPose } from './rider.js';
 
@@ -165,13 +166,17 @@ function game() {
         },
         onFinish() {
             if (runScore > best) { best = runScore; try { localStorage.setItem('snowboard.best', String(best)); } catch { } }
-            showPanel(`
-                <h1>RUN COMPLETE</h1>
-                <div class="big">${runScore.toLocaleString()} pts</div>
-                <p>Best: ${best.toLocaleString()}</p>
-                <p class="keys"><b>ENTER</b> hike back up</p>`);
+            startCelebration(showRunComplete);
         },
     };
+
+    function showRunComplete() {
+        showPanel(`
+            <h1>RUN COMPLETE</h1>
+            <div class="big">${runScore.toLocaleString()} pts</div>
+            <p>Best: ${best.toLocaleString()}</p>
+            <p class="keys"><b>ENTER</b> hike back up</p>`);
+    }
 
     const player = new Player(scene, course, body, events);
     window.__game = { player, body, cam, course, sound };
@@ -233,13 +238,14 @@ function game() {
         toast('Back on your feet — W to ride');
     }
 
-    // Backspace can come mid-replay or mid-rescue: drop them without
-    // running what they'd show next.
+    // Backspace can come mid-replay, mid-rescue or mid-celebration: drop
+    // them without running what they'd show next.
     function cancelScenes() {
         replay.active = false;
         replay.done = null;
         document.body.classList.remove('replaying');
         if (rescue.active) rescue.stop();
+        celebration.stop();
     }
 
     function restart() {
@@ -607,6 +613,52 @@ function game() {
         shadow.update(r.x, gy, r.z, normalAt(r.x, r.z, tmp2), player.rider.root.visible ? Math.max(0, r.y - gy) : 99, player.yaw);
     }
 
+    // -------------------------------------------------------- finish line
+    // Finish the run and the fans run out to hug you.
+    const celebration = new Celebration(scene, {
+        groundAt: heightAt,
+        sound,
+        spray: at => spray.emit(at, { x: 0, y: 1, z: 0 }, 1, 1, 1),
+    });
+    const BRAKE = { down: true }, NO_KEYS = {};
+    const _along = new THREE.Vector3();
+    function startCelebration(done) {
+        // Skid to a stop within ~12 m, then they arrive.
+        const v = player.vel, sp = Math.hypot(v.x, v.z);
+        _along.set(v.x, 0, v.z).normalize();
+        if (!sp) player.forward(_along).setY(0).normalize();
+        celebration.decel = Math.max(5, sp * sp / 24);
+        const stopAt = player.pos.clone().addScaledVector(_along, sp * sp / (2 * celebration.decel));
+        stopAt.y = heightAt(stopAt.x, stopAt.z);
+        celebration.camPos = stopAt.clone().addScaledVector(_along, 4.2)
+            .add(new THREE.Vector3(-_along.z, 0, _along.x).multiplyScalar(1.8));
+        celebration.camPos.y = heightAt(celebration.camPos.x, celebration.camPos.z) + 1.3;
+        celebration.start(stopAt, _along, done);
+        cam.look.copy(player.pos);
+    }
+    function stepCelebration(real) {
+        // Brake the rider along his line until he stops.
+        const v = player.vel, sp = Math.hypot(v.x, v.z);
+        if (sp > 0) {
+            const k = Math.max(0, sp - celebration.decel * real) / sp;
+            v.x *= k; v.z *= k;
+            player.pos.x += v.x * real;
+            player.pos.z += v.z * real;
+            player.pos.y = heightAt(player.pos.x, player.pos.z);
+            normalAt(player.pos.x, player.pos.z, player.normal);
+        }
+        player.syncVisual(real, sp > 1 ? BRAKE : NO_KEYS, time);
+        celebration.update(real, camera);
+        camera.position.copy(celebration.camPos);
+        cam.look.lerp(tmp.copy(player.pos).setY(player.pos.y + 0.9), 1 - Math.exp(-5 * real));
+        camera.lookAt(cam.look);
+        camera.fov += (50 - camera.fov) * Math.min(1, real * 3);
+        camera.updateProjectionMatrix();
+        sky.position.copy(camera.position);
+        const gy = player.pos.y;
+        shadow.update(player.pos.x, gy, player.pos.z, player.normal, 0, player.yaw);
+    }
+
     addEventListener('keydown', e => {
         const skip = e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape';
         if (replay.active && skip) {
@@ -616,6 +668,9 @@ function game() {
             e.stopImmediatePropagation();
             rescue.stop();
             rescue.done?.();
+        } else if (celebration.active && skip) {
+            e.stopImmediatePropagation();
+            celebration.t = celebration.duration;
         }
     }, true);
 
@@ -630,6 +685,7 @@ function game() {
     window.__game.frame = real => frame(real);
     window.__game.camera = camera;
     window.__game.rescue = rescue;
+    window.__game.celebration = celebration;
     renderer.setAnimationLoop(() => {
         const real = Math.min(clock.getDelta(), 1 / 20);
         if (!film) frame(real);
@@ -648,6 +704,12 @@ function game() {
                 shadow.update(p.x, gy, p.z, normalAt(p.x, p.z, tmp2), Math.max(0, p.y - gy), player.yaw);
             }
             $('trick').classList.remove('pop');
+            renderer.render(scene, camera);
+            return;
+        }
+        if (celebration.active) {
+            stepCelebration(real);
+            spray.update(real);
             renderer.render(scene, camera);
             return;
         }
