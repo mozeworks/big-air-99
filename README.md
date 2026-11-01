@@ -31,7 +31,8 @@ Rail (right side of the run-in) → big table-top kicker → step-down
 km/h**, ~9 m rock face) or the **chute** on the right. Signs and the HUD tell
 you what's next and how fast you can hit it; your speed flashes red when
 you're too hot.
-Make it to the bottom in one piece and your fans run out to celebrate.
+Make it under the checkered FINISH arch in one piece and your fans run out to
+celebrate.
 
 You're free to explore the trees off the groomed run — but that's **bear
 country**. The HUD warns you while you're off-trail, and after a couple of

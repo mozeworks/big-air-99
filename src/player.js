@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FEATURES, CLIFF_X, BOUNDS, COURSE_HALF_WIDTH } from './course.js';
+import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FINISH_S, FEATURES, CLIFF_X, BOUNDS, COURSE_HALF_WIDTH } from './course.js';
 import { Bear } from './bear.js';
 import { Debris } from './debris.js';
 import { POSES, GRABS, clonePose, blendPose, Rider } from './rider.js';
@@ -134,7 +134,7 @@ export class Player {
             this.railCooldown = Math.max(0, this.railCooldown - dt);
             if (this.state !== 'crashed') this.checkTrees();
             if (this.state !== 'crashed') this.checkBounds(dt);
-            if (this.state === 'ride' && this.s > S_MAX - 40 && !this.finished && !this.bearing) {
+            if (this.state === 'ride' && this.s > FINISH_S && !this.finished && !this.bearing) {
                 this.finished = true;
                 this.events.onFinish?.();
             }

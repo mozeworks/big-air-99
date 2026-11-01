@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
     profileHeight, profileGrade, ledgeDelta, LIP_S, KICKER_START_S, KNUCKLE_S, SWEET_SPOT,
-    COURSE_HALF_WIDTH, S_MIN, S_MAX, LIP2_S, CLIFF_S, CLIFF_X, LEDGE_START_S, FEATURES, RAIL, BOUNDS,
+    COURSE_HALF_WIDTH, S_MIN, S_MAX, FINISH_S, LIP2_S, CLIFF_S, CLIFF_X, LEDGE_START_S, FEATURES, RAIL, BOUNDS,
 } from './profile.js';
 
 const W = COURSE_HALF_WIDTH;
@@ -51,7 +51,7 @@ export function normalAt(x, z, out = _n) {
     return out.set(-hx / (2 * e), 1, -hz / (2 * e)).normalize();
 }
 
-export { LIP_S, KICKER_START_S, KNUCKLE_S, SWEET_SPOT, W as COURSE_HALF_WIDTH, S_MIN, S_MAX, profileGrade, LIP2_S, CLIFF_S, CLIFF_X, FEATURES, RAIL, BOUNDS };
+export { LIP_S, KICKER_START_S, KNUCKLE_S, SWEET_SPOT, W as COURSE_HALF_WIDTH, S_MIN, S_MAX, FINISH_S, profileGrade, LIP2_S, CLIFF_S, CLIFF_X, FEATURES, RAIL, BOUNDS };
 
 // ---------------------------------------------------------------- mesh
 
@@ -296,6 +296,88 @@ function buildBoundary(scene) {
     }
 }
 
+// Checkerboard texture, `n` squares across one repeat.
+function checkerTexture(n = 2) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 16 * n;
+    const g = canvas.getContext('2d');
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        g.fillStyle = (i + j) % 2 ? '#111' : '#fff';
+        g.fillRect(i * 16, j * 16, 16, 16);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+}
+
+// Finish arch across the run: checkered pillars, a FINISH banner (readable
+// from both sides), checkered flags on top and a checkered line in the snow.
+function buildFinish(scene) {
+    const z = -FINISH_S, span = W + 0.8, height = 6;
+    const y = Math.max(heightAt(-span, z), heightAt(span, z));
+    const group = new THREE.Group();
+
+    const pillarTex = checkerTexture();
+    pillarTex.repeat.set(1, 6);
+    const pillarMat = new THREE.MeshLambertMaterial({ map: pillarTex });
+    for (const side of [-1, 1]) {
+        const x = side * span;
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.7, height + 1.2, 0.7), pillarMat);
+        pillar.position.set(x, heightAt(x, z) + (height + 1.2) / 2 - 0.3, z);
+        group.add(pillar);
+        // Flag pole on top with a checkered flag flying outward.
+        const top = heightAt(x, z) + height + 0.9;
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 5), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+        pole.position.set(x, top + 1.1, z);
+        const flagTex = checkerTexture(4);
+        const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0), new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }));
+        flag.position.set(x + side * 0.8, top + 1.7, z);
+        flag.rotation.y = side * 0.25;
+        group.add(pole, flag);
+    }
+
+    // The banner: checkered edges, red middle, FINISH in big italic caps.
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024; canvas.height = 96;
+    const g = canvas.getContext('2d');
+    g.fillStyle = '#c4161c'; g.fillRect(0, 0, 1024, 96);
+    for (let i = 0; i < 1024 / 12; i++) for (const row of [0, 1]) {
+        g.fillStyle = (i + row) % 2 ? '#111' : '#fff';
+        g.fillRect(i * 12, row * 12, 12, 12);
+        g.fillRect(i * 12, 72 + row * 12, 12, 12);
+    }
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = "italic 900 46px Impact, 'Arial Black', sans-serif";
+    g.fillStyle = '#7a0d10'; g.fillText('F I N I S H', 515, 51);
+    g.fillStyle = '#ffd21f'; g.fillText('F I N I S H', 512, 48);
+    g.font = "italic 900 22px Impact, 'Arial Black', sans-serif";
+    g.fillStyle = '#fff';
+    for (const x of [140, 884]) g.fillText("BIG AIR '99", x, 48);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 4;
+    const bannerGeo = new THREE.PlaneGeometry(span * 2, span * 2 * 96 / 1024);
+    for (const back of [false, true]) {
+        const banner = new THREE.Mesh(bannerGeo, new THREE.MeshBasicMaterial({ map: tex }));
+        banner.position.set(0, y + height, z + (back ? -0.02 : 0.02));
+        if (back) banner.rotation.y = Math.PI;
+        group.add(banner);
+    }
+
+    // Checkered line across the snow, draped over the terrain.
+    const lineTex = checkerTexture();
+    lineTex.repeat.set(span * 2 / 1.5, 1);
+    const line = new THREE.PlaneGeometry(span * 2, 1.5, 32, 1).rotateX(-Math.PI / 2);
+    const pos = line.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+        const px = pos.getX(i), pz = z + pos.getZ(i);
+        pos.setXYZ(i, px, heightAt(px, pz) + 0.04, pz);
+    }
+    line.computeVertexNormals();
+    group.add(new THREE.Mesh(line, new THREE.MeshLambertMaterial({ map: lineTex })));
+    scene.add(group);
+}
+
 function buildRail(scene) {
     const a = new THREE.Vector3(RAIL.x, heightAt(RAIL.x, -RAIL.s0) + RAIL.height, -RAIL.s0);
     const b = new THREE.Vector3(RAIL.x, heightAt(RAIL.x, -RAIL.s1) + RAIL.height, -RAIL.s1);
@@ -347,6 +429,7 @@ export function buildCourse(scene) {
     buildFlags(scene);
     buildSigns(scene);
     buildBoundary(scene);
+    buildFinish(scene);
     const rail = buildRail(scene);
     buildBackdrop(scene);
 

@@ -63,6 +63,8 @@ export const BOUNDS = { x: 40, sMin: -30, sMax: 685, warn: 6 };
 export const COURSE_HALF_WIDTH = 16;
 export const S_MIN = -40;
 export const S_MAX = 695;
+// Cross this on your board and the run's complete.
+export const FINISH_S = S_MAX - 40;
 
 const STEP = 0.1;
 const table = [];
