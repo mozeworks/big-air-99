@@ -240,6 +240,69 @@ export class Sound {
         this.voice(t + 0.15, 0.4, 0.3, 260, 360, 'o');
     }
 
+    // Rescue vehicles: a two-stroke snowmobile buzz or a helicopter's rotor
+    // chop. engine(kind) starts one (null stops it); engineLevel(k) sets how
+    // loud it is (0..1, by distance) and how hard it's working.
+    engine(kind) {
+        if (!this.ctx) return;
+        const c = this.ctx, t = this.now;
+        if (this.eng) {
+            const old = this.eng;
+            old.out.gain.setTargetAtTime(0, t, 0.15);
+            setTimeout(() => old.nodes.forEach(n => n.stop()), 800);
+            this.eng = null;
+        }
+        if (!kind) return;
+        const out = c.createGain(); out.gain.value = 0;
+        out.connect(this.master);
+        const nodes = [];
+        if (kind === 'snowmobile') {
+            // Buzzy sawtooth pair through a lowpass, wobbling like a two-stroke.
+            const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 2;
+            lp.connect(out);
+            const oscs = [95, 97.5].map(f => {
+                const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+                o.connect(lp); o.start(); nodes.push(o);
+                return o;
+            });
+            const lfo = c.createOscillator(); lfo.frequency.value = 18;
+            const lfoGain = c.createGain(); lfoGain.gain.value = 6;
+            lfo.connect(lfoGain);
+            for (const o of oscs) lfoGain.connect(o.frequency);
+            lfo.start(); nodes.push(lfo);
+            this.eng = { kind, out, nodes, oscs, lp, base: 0.22 };
+        } else {
+            // Rotor chop: low noise and a thump, amplitude-gated ~11 times a second.
+            const src = c.createBufferSource(); src.buffer = this.noise; src.loop = true;
+            const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; lp.Q.value = 1;
+            const chop = c.createGain(); chop.gain.value = 0.5;
+            const thump = c.createOscillator(); thump.type = 'sine'; thump.frequency.value = 55;
+            src.connect(lp).connect(chop);
+            thump.connect(chop);
+            chop.connect(out);
+            const lfo = c.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 11;
+            const depth = c.createGain(); depth.gain.value = 0.5;
+            lfo.connect(depth).connect(chop.gain);
+            // Turbine whine on top.
+            const whine = c.createOscillator(); whine.type = 'sine'; whine.frequency.value = 3100;
+            const wg = c.createGain(); wg.gain.value = 0.02;
+            whine.connect(wg).connect(out);
+            for (const n of [src, thump, lfo, whine]) { n.start(); nodes.push(n); }
+            this.eng = { kind, out, nodes, base: 0.9 };
+        }
+    }
+
+    engineLevel(k, rev = 0) {
+        const e = this.eng;
+        if (!e) return;
+        const t = this.now;
+        e.out.gain.setTargetAtTime(e.base * k * k, t, 0.08);
+        if (e.oscs) {
+            for (const [i, o] of e.oscs.entries()) o.frequency.setTargetAtTime((95 + i * 2.5) * (1 + rev * 0.6), t, 0.2);
+            e.lp.frequency.setTargetAtTime(900 + rev * 900, t, 0.2);
+        }
+    }
+
     // Ski patrol whistle.
     patrol() {
         if (!this.ctx) return;

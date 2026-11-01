@@ -4,6 +4,7 @@ import { Player } from './player.js';
 import { Body, effectsOf, describeEffects } from './injury.js';
 import { buildSky, BlobShadow, Spray } from './fx.js';
 import { xraySVG } from './xray.js';
+import { Rescue } from './rescue.js';
 import { Sound } from './audio.js';
 import { POSES, GRABS, Rider, clonePose, blendPose } from './rider.js';
 
@@ -160,7 +161,7 @@ function game() {
             updateBodyHud();
         },
         onCrashSettled(p, result) {
-            startReplay(() => showCrashReport(result));
+            startReplay(() => body.hospitalized ? startRescue(result) : showCrashReport(result));
         },
         onFinish() {
             if (runScore > best) { best = runScore; try { localStorage.setItem('snowboard.best', String(best)); } catch { } }
@@ -565,10 +566,45 @@ function game() {
         return _p;
     }
 
+    // -------------------------------------------------------- rescue
+    // Ambulance-level slams: ski patrol comes for you before the hospital.
+    const rescue = new Rescue(scene, {
+        groundAt: heightAt,
+        sound,
+        spray: (at, n, spread = 2.5) => spray.emit(at, { x: 0, y: 2, z: 0 }, n, spread, 2.5),
+    });
+    function startRescue(result) {
+        const r = player.rider;
+        r.pose = clonePose(POSES.crash);                  // slumped in the snow until they load him
+        r.flail = 0;
+        r.update(time);
+        cam.look.copy(player.pos);
+        rescue.start(Rescue.kindFor(body), r, player.pos, () => showHospital(result));
+        toast(rescue.kind === 'helicopter' ? 'Medevac on the way' : 'Ski patrol on the way', true);
+    }
+    function stepRescue(real) {
+        rescue.update(real);
+        if (!rescue.active) return;
+        camera.position.copy(rescue.camPos);
+        cam.look.lerp(rescue.focus, 1 - Math.exp(-6 * real));
+        camera.lookAt(cam.look);
+        camera.fov += ((rescue.kind === 'helicopter' ? 62 : 55) - camera.fov) * Math.min(1, real * 3);
+        camera.updateProjectionMatrix();
+        sky.position.copy(camera.position);
+        // The rider's shadow goes with him (and away once he's in the helicopter).
+        const r = player.rider.root.position, gy = heightAt(r.x, r.z);
+        shadow.update(r.x, gy, r.z, normalAt(r.x, r.z, tmp2), player.rider.root.visible ? Math.max(0, r.y - gy) : 99, player.yaw);
+    }
+
     addEventListener('keydown', e => {
-        if (replay.active && (e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape')) {
+        const skip = e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape';
+        if (replay.active && skip) {
             e.stopImmediatePropagation();
             endReplay();
+        } else if (rescue.active && skip) {
+            e.stopImmediatePropagation();
+            rescue.stop();
+            rescue.done?.();
         }
     }, true);
 
@@ -582,6 +618,7 @@ function game() {
     const film = params.has('film');
     window.__game.frame = real => frame(real);
     window.__game.camera = camera;
+    window.__game.rescue = rescue;
     renderer.setAnimationLoop(() => {
         const real = Math.min(clock.getDelta(), 1 / 20);
         if (!film) frame(real);
@@ -600,6 +637,13 @@ function game() {
                 shadow.update(p.x, gy, p.z, normalAt(p.x, p.z, tmp2), Math.max(0, p.y - gy), player.yaw);
             }
             $('trick').classList.remove('pop');
+            renderer.render(scene, camera);
+            return;
+        }
+        if (rescue.active) {
+            stepRescue(real);
+            spray.update(real);
+            if (toastTimer > 0 && (toastTimer -= real) <= 0) $('toast').className = '';
             renderer.render(scene, camera);
             return;
         }

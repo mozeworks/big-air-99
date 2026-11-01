@@ -74,6 +74,10 @@ The arrow keys also steer, if you prefer them.
   a bad back limits the tweak, a concussion blurs your vision.
 - Injuries persist in the browser's local storage. **E** rests a week; anything
   serious (fracture, torn ACL…) means an ambulance and rehab.
+- When it's that serious, ski patrol comes for you after the replay: a
+  snowmobile tows you down on a rescue sled, or for the worst slams
+  (broken femur, fractured vertebra, severe concussion, several bad injuries
+  at once) a helicopter winches you out. Enter skips it.
 
 ## Code map
 
@@ -87,5 +91,6 @@ The arrow keys also steer, if you prefer them.
 - `src/xray.js` — the X-ray film.
 - `src/bear.js` — the off-trail bear.
 - `src/debris.js` — gear and board pieces flying off in a crash.
+- `src/rescue.js` — the snowmobile and helicopter rescues.
 - `src/audio.js` — all sound, synthesized with WebAudio.
 - `src/main.js` — renderer, cameras (chase + photo cam), HUD, replay, demo autopilot.
