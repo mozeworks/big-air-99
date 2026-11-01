@@ -31,6 +31,10 @@ const GRAB_NAMES = { method: 'Method', indy: 'Indy', stalefish: 'Stalefish', jap
 // Bears off-trail: seconds of grace, then chance per second.
 const BEAR_GRACE = 2, BEAR_RATE = 0.12;
 const NO_INPUT = { left: false, right: false, up: false, down: false, jump: false };
+// Stuck: riding but getting no further down the hill (stalled on a flat,
+// rocking back and forth in a dip) for STUCK_TIME s. Traversing sideways
+// through the trees still counts as going somewhere. Ski patrol hikes you up.
+const STUCK_TIME = 8, STUCK_GAIN = 3, STUCK_SIDEWAYS = 8;
 const freshGrab = () => ({ held: false, type: null, time: 0, hold: 0, maxTweak: 0, used: false, done: [] });
 
 export class Player {
@@ -85,6 +89,8 @@ export class Player {
         this.bearing = false;
         this.offTrail = false;
         this.offTrailT = 0;
+        this.stuckT = 0;
+        this.stuckAt = this.pos.clone();
         this.bear?.hide();
         this.debris?.clear();
         this.rider.setGear(null);
@@ -132,6 +138,7 @@ export class Player {
                 this.finished = true;
                 this.events.onFinish?.();
             }
+            this.checkStuck(dt);
         }
 
         this.wobble = Math.max(0, this.wobble - dt);
@@ -457,6 +464,23 @@ export class Player {
 
     // Get up after a crash and keep riding from (near) where you went down:
     // on the groomed run, facing downhill, standing until you push off.
+    checkStuck(dt) {
+        // stuckAt.z holds the furthest point down the hill so far (most
+        // negative z); stuckAt.x where the last sideways traverse began.
+        const progress = this.pos.z < this.stuckAt.z - STUCK_GAIN || Math.abs(this.pos.x - this.stuckAt.x) > STUCK_SIDEWAYS;
+        if (this.state !== 'ride' || this.finished || this.bearing || progress) {
+            this.stuckT = 0;
+            this.stuckAt.set(this.pos.x, 0, Math.min(this.stuckAt.z, this.pos.z));
+            return;
+        }
+        this.stuckT += dt;
+        if (this.stuckT >= STUCK_TIME) {
+            this.stuckT = 0;
+            this.events.onStuck?.(this);
+        }
+    }
+    get stuckLeft() { return this.stuckT > STUCK_TIME - 5 ? Math.ceil(STUCK_TIME - this.stuckT) : 0; }
+
     getUp() {
         const s = Math.min(S_MAX - 45, Math.max(BOUNDS.sMin + 5, this.s));
         const edge = COURSE_HALF_WIDTH - 2;

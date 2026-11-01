@@ -164,6 +164,17 @@ function game() {
         onCrashSettled(p, result) {
             startReplay(() => body.hospitalized ? startRescue(result) : showCrashReport(result));
         },
+        // Stalled out on a flat or in a dip: patrol won't let you sit there.
+        onStuck() {
+            sound.patrol();
+            player.reset();
+            replay.frames.length = 0;
+            replay.crashIndex = -1;
+            runScore = 0;
+            cam.mode = 'chase';
+            cam.snap = true;
+            toast('Ski patrol: no parking on the run! Hiked you back up — W to drop in', true);
+        },
         onFinish() {
             if (runScore > best) { best = runScore; try { localStorage.setItem('snowboard.best', String(best)); } catch { } }
             startCelebration(showRunComplete);
@@ -354,7 +365,7 @@ function game() {
         toast(list.map(i => `${i.name} (-${i.dmg})`).join(', '), true);
     }
 
-    let toastTimer = 0;
+    let toastTimer = 0, lastStuck = 0;
     function toast(msg, bad = false) {
         const el = $('toast');
         el.textContent = msg;
@@ -767,6 +778,10 @@ function game() {
         $('oob').classList.toggle('show', player.offTrail && !player.bearing && player.state !== 'crashed');
         if (player.state === 'rail') $('balance-dot').style.left = `${50 + player.rail.balance * 50}%`;
         $('slowmo').classList.toggle('show', timeScale < 0.8);
+        // Stalled: count down to ski patrol hiking you back up.
+        const stuck = player.stuckLeft;
+        if (stuck && stuck !== lastStuck) toast(`Stuck? Ski patrol hikes you back up in ${stuck}…`);
+        lastStuck = stuck;
 
         if (trickTimer > 0 && (trickTimer -= real) <= 0) $('trick').classList.remove('pop');
         if (toastTimer > 0 && (toastTimer -= real) <= 0) $('toast').className = '';

@@ -38,6 +38,9 @@ country**. The HUD warns you while you're off-trail, and after a couple of
 seconds a bear can come out of the trees at any moment (about 9 s on average).
 The orange rope line 40 m out (and across the top and bottom) is a hard edge:
 cross it and ski patrol drops you back in the middle of the trail.
+Ski patrol also doesn't allow parking on the run: if you stall out (say, after
+getting up from a crash on a flat or in a dip) and make no progress downhill
+for 8 seconds, they hike you back up to the top.
 
 ## Controls
 
