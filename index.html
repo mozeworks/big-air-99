@@ -87,8 +87,12 @@
     .community a { color: #ffe14a; }
 
     #panel.wide { width: min(560px, calc(100vw - 32px)); }
-    /* Run complete: up top, out of the way of the finish-line party. */
-    #panel.top { top: 24px; transform: translateX(-50%); }
+    /* Title and run complete stay clear of the rider in the middle of the
+       screen: off to the left on wide screens, up top on narrow ones. */
+    #title, #panel.top { top: 24px; transform: translateX(-50%); }
+    @media (min-width: 1000px) {
+        #title, #panel.top { left: 24px; top: 50%; transform: translateY(-50%); }
+    }
     .xray-wrap { display: grid; grid-template-columns: 140px 1fr; gap: 18px; margin-top: 12px; align-items: start; }
     @media (max-width: 480px) { .xray-wrap { grid-template-columns: 96px 1fr; gap: 12px; } }
     .xray { width: 100%; background: radial-gradient(ellipse at 50% 40%, #1d3550, #050b14 75%); border: 2px solid #9fb7d0; border-radius: 4px; padding: 6px; }
