@@ -43,6 +43,12 @@ export class Sound {
 
         // Snow under the board: bandpassed noise.
         this.snow = this.loop('bandpass', 900, 0.8);
+        // Carving: the edge cutting into snow. A crisp "shhhh" band, a lower
+        // crunch of packed snow, and (only on hard fast turns) a faint chatter.
+        this.edge = this.loop('bandpass', 2600, 1.1);
+        this.crunch = this.loop('bandpass', 520, 1.6);
+        this.chatter = this.loop('bandpass', 3400, 9);
+        this.lastTurn = 0;
         // Wind: lowpassed noise.
         this.wind = this.loop('lowpass', 500, 0.7);
         // Rail grind: steel on steel. Noise run through a bank of narrow
@@ -92,12 +98,35 @@ export class Sound {
         if (!this.ctx) return;
         const speed = p.speed, kmh = speed * 3.6;
         const onSnow = p.state === 'ride' && !quiet;
-        const carve = onSnow ? Math.abs((input.left ? 1 : 0) - (input.right ? 1 : 0)) : 0;
+        const steer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+        // How hard the edge is biting: the board's lean eases in and out, so
+        // the sound swells through a turn instead of switching on with the key.
+        const bite = onSnow ? Math.min(1, Math.abs(p.lean) / 0.42) : 0;
+        const carve = onSnow ? Math.max(bite, Math.abs(steer) * 0.5) : 0;
         const brake = onSnow && input.down ? 1 : 0;
         const sp = Math.min(1, kmh / 90);
+        const t = this.ctx.currentTime;
+        // Gliding: a soft low hush, quieter than the carve itself.
         this.set(this.snow,
-            onSnow ? 0.03 + sp * 0.15 + carve * 0.13 * sp + brake * 0.25 * Math.min(1, kmh / 30) : 0,
-            700 + sp * 1600 + carve * 900 + brake * 1400);
+            onSnow ? 0.025 + sp * 0.1 + brake * 0.25 * Math.min(1, kmh / 30) : 0,
+            500 + sp * 1000 + brake * 1800);
+        // Edge hiss: louder and brighter with speed and lean, with a little
+        // random flutter so it sounds like snow being cut, not a steady tone.
+        const cut = carve * Math.min(1, 0.15 + sp * 1.1);
+        const flutter = 0.85 + Math.random() * 0.3;
+        this.edge.gain.gain.setTargetAtTime(cut * 0.34 * flutter, t, 0.05);
+        this.edge.filter.frequency.setTargetAtTime(1900 + sp * 2400 + bite * 900, t, 0.08);
+        this.crunch.gain.gain.setTargetAtTime(cut * 0.3 * (0.6 + Math.random() * 0.8), t, 0.04);
+        this.crunch.filter.frequency.setTargetAtTime(380 + sp * 500, t, 0.08);
+        // Fast, hard turn: the edge starts to chatter.
+        const chat = Math.max(0, bite * sp - 0.45) * 2;
+        this.chatter.gain.gain.setTargetAtTime(onSnow ? chat * 0.05 * (0.4 + Math.random()) : 0, t, 0.05);
+        // Switching edges: a quick "shk" swish as the board rolls over.
+        const turn = onSnow && bite > 0.35 ? Math.sign(p.lean) : 0;
+        if (turn && this.lastTurn && turn !== this.lastTurn && kmh > 15) {
+            this.burst(t, 0.16, 0.12 + sp * 0.2, 'bandpass', 1500, 1.2, 4200);
+        }
+        if (turn) this.lastTurn = turn; else if (!onSnow) this.lastTurn = 0;
         const air = p.state === 'air';
         this.set(this.wind, quiet ? 0 : Math.min(0.35, sp * sp * 0.25 + (air ? 0.1 : 0)), 300 + sp * 900);
         this.updateGrind(p, p.state === 'rail' && !quiet);
