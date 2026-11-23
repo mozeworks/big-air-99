@@ -145,7 +145,10 @@ export const POSES = {
 
 // Every pose gets every key so poses can be blended into each other.
 const POSE_DEFAULTS = { lGrab: 0, grabPt: [-0.13, 0.05, -0.1], rGrab: 0, rGrabPt: [0.13, 0.04, 0.05], twist: 0, kneeLocal: 0, kneeBoard: 0,
-    lElbow: [-0.2, -1, -0.5], rElbow: [-0.2, -1, 0.5] };
+    lElbow: [-0.2, -1, -0.5], rElbow: [-0.2, -1, 0.5],
+    // Ragdoll: when rag > 0.5 the torso / head / board orientations come from
+    // these quaternions [x, y, z, w] instead of the Euler angles (see ragdoll.js).
+    rag: 0, torsoQ: [0, 0, 0, 1], headQ: [0, 0, 0, 1], boardQ: [0, 0, 0, 1] };
 for (const p of Object.values(POSES)) {
     for (const [k, v] of Object.entries(POSE_DEFAULTS)) if (!(k in p)) p[k] = Array.isArray(v) ? v.slice() : v;
 }
@@ -317,14 +320,19 @@ export class Rider {
 
         // Board transform.
         this.board.position.set(p.board[0], p.board[1], p.board[2]);
-        this.board.rotation.set(p.boardRot[0], p.boardRot[1], p.boardRot[2]);
+        const rag = p.rag > 0.5;
+        if (rag) this.board.quaternion.set(p.boardQ[0], p.boardQ[1], p.boardQ[2], p.boardQ[3]).normalize();
+        else this.board.rotation.set(p.boardRot[0], p.boardRot[1], p.boardRot[2]);
         this.board.updateMatrix();
 
         // Torso frame.
         hip.set(p.hip[0], p.hip[1], p.hip[2]);
-        this._e.set(p.torso[0], p.torso[1], p.torso[2], 'YZX');
         this.torso.position.copy(hip);
-        this.torso.quaternion.setFromEuler(this._e);
+        if (rag) this.torso.quaternion.set(p.torsoQ[0], p.torsoQ[1], p.torsoQ[2], p.torsoQ[3]).normalize();
+        else {
+            this._e.set(p.torso[0], p.torso[1], p.torso[2], 'YZX');
+            this.torso.quaternion.setFromEuler(this._e);
+        }
         // Twist the shoulders around the spine itself (not the world vertical).
         if (p.twist) this.torso.quaternion.multiply(this._q.setFromAxisAngle(UP, p.twist));
         const tq = this.torso.quaternion;
@@ -348,9 +356,14 @@ export class Rider {
 
         // Head.
         neck.set(0, SPINE + 0.04, 0).applyQuaternion(tq).add(hip);
-        this.head.position.copy(neck).add(tmp.set(0, 0.13, 0).applyQuaternion(tq));
-        this._e.set(p.head[0], p.head[1], p.head[2], 'YZX');
-        this.head.quaternion.copy(tq).multiply(this._q.setFromEuler(this._e));
+        if (rag) {
+            this.head.quaternion.set(p.headQ[0], p.headQ[1], p.headQ[2], p.headQ[3]).normalize();
+            this.head.position.copy(neck).add(tmp.set(0, 0.13, 0).applyQuaternion(this.head.quaternion));
+        } else {
+            this.head.position.copy(neck).add(tmp.set(0, 0.13, 0).applyQuaternion(tq));
+            this._e.set(p.head[0], p.head[1], p.head[2], 'YZX');
+            this.head.quaternion.copy(tq).multiply(this._q.setFromEuler(this._e));
+        }
 
         // Arms. Left (front) hand can be pulled onto the board's heel edge.
         const flail = this.flail;

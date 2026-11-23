@@ -3,6 +3,7 @@ import { heightAt, normalAt, LIP_S, KNUCKLE_S, S_MAX, FINISH_S, FEATURES, CLIFF_
 import { Bear } from './bear.js';
 import { Debris } from './debris.js';
 import { POSES, GRABS, clonePose, blendPose, Rider } from './rider.js';
+import { Ragdoll } from './ragdoll.js';
 
 const G = 9.81;
 const MU = 0.05, MU_BRAKE = 0.5;
@@ -46,6 +47,7 @@ export class Player {
         scene.add(this.rider.root);
         this.bear = new Bear(scene);
         this.debris = new Debris(scene);
+        this.ragdoll = new Ragdoll();
 
         this.pos = new THREE.Vector3();
         this.vel = new THREE.Vector3();
@@ -97,6 +99,7 @@ export class Player {
         this.rider.flail = 0;
         this.rider.pose = clonePose(POSES.ride);
         this.rider.root.quaternion.identity();
+        this.ragdoll.stop();
         this.syncVisual(0, {});
     }
 
@@ -593,7 +596,12 @@ export class Player {
         this.tumble.z += (Math.random() - 0.5) * 0.6;
         this.tumble.normalize();
         if (type === 'tree') this.vel.multiplyScalar(-0.15);
-        this.rider.flail = 1;
+        // Go limp: hand the body over to the ragdoll, carrying the spin it had.
+        const omega = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)).multiplyScalar(this.flipVel * 0.7);
+        omega.y += this.spinVel * 0.7;
+        this.ragdoll.start(this.rider, this.pos, this.vel, omega);
+        this.rider.root.quaternion.identity();
+        this.rider.flail = 0;
         this.events.onCrash?.(this, type, energy);
     }
 
@@ -628,10 +636,7 @@ export class Player {
         const gy = heightAt(this.pos.x, this.pos.z);
         if (this.pos.y < gy) this.pos.y = gy;
 
-        this.rider.flail = Math.max(0, this.rider.flail - dt * 0.5);
-        const spin = Math.min(11, v.length() * 0.8);
-        this._q.setFromAxisAngle(this.tumble, spin * dt);
-        this.rider.root.quaternion.premultiply(this._q);
+        this.ragdoll.step(dt, heightAt, G, this.pos, v, this.pos.y <= heightAt(this.pos.x, this.pos.z) + 0.06);
 
         // Settled — or, whatever the terrain is doing, call it after 4 s.
         if (!this.crashReported && ((this.crashT > 1.2 && v.length() < 1.5) || this.crashT > 4)) {
@@ -649,7 +654,7 @@ export class Player {
 
         if (this.state === 'crashed') {
             root.position.copy(this.pos).addScaledVector(UP, 0.25);
-            rider.blendTo(POSES.crash, 6, dt);
+            this.ragdoll.writePose(rider.pose, root.position);
             rider.update(time);
             return;
         }
