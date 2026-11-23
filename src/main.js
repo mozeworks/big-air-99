@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { buildCourse, heightAt, normalAt, LIP_S, LIP2_S, CLIFF_S, CLIFF_X, FEATURES, RAIL } from './course.js';
 import { Player } from './player.js';
 import { Body, effectsOf, describeEffects } from './injury.js';
-import { buildSky, BlobShadow, Spray } from './fx.js';
+import { buildSky, BlobShadow, Spray, Flurries } from './fx.js';
 import { xraySVG } from './xray.js';
 import { Rescue } from './rescue.js';
 import { Celebration } from './celebrate.js';
@@ -82,6 +82,8 @@ function game() {
     const course = buildCourse(scene);
     const body = new Body(!params.has('demo'));
     const spray = new Spray(scene);
+    const flurries = new Flurries(scene);
+    if (params.has('flurry')) flurries.start(60);   // ?flurry: test it without waiting
     const shadow = new BlobShadow(scene);
 
     let runScore = 0;
@@ -221,6 +223,7 @@ function game() {
         if (e.code === 'KeyG' && player.state === 'ready' && !panelOpen()) setStance(!goofy);
         if (e.code === 'KeyC') { cam.cinematic = !cam.cinematic; toast(`Photo cam ${cam.cinematic ? 'ON' : 'OFF'}`); }
         if (e.code === 'KeyV') { retro = !retro; applyResolution(); toast(retro ? 'Retro pixels ON' : 'Retro pixels OFF'); }
+        if (e.code === 'KeyF') { flurries.setEnabled(true); flurries.start(); toast('Flurry!'); }
         if (e.code === 'KeyM') { sound.setMuted(!sound.muted); toast(sound.muted ? 'Sound OFF' : 'Sound ON'); }
         if (e.code === 'Enter' && panelOpen()) {
             // After a crash you get up and keep riding — unless the board
@@ -708,6 +711,7 @@ function game() {
         const dt = real * timeScale;
         time += dt;
         sound.update(player, input, replay.active || panelOpen());
+        flurries.update(real, camera.position);
 
         if (replay.active) {
             const p = stepReplay(real);

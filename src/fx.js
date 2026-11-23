@@ -96,3 +96,77 @@ export class Spray {
         this.points.geometry.attributes.position.needsUpdate = true;
     }
 }
+
+// An occasional snow flurry. Most of the time there's nothing; every so often
+// (random, roughly every 30-90 s of play) the snow picks up for 4-8 seconds,
+// with a gust of wind, then thins out again. Particles live in a box that
+// follows the camera and wrap around its edges.
+export class Flurries {
+    constructor(scene, count = 1600, box = { x: 60, y: 28, z: 80 }) {
+        this.count = count;
+        this.box = box;
+        this.pos = new Float32Array(count * 3);
+        this.seed = new Float32Array(count);
+        for (let i = 0; i < count; i++) {
+            this.pos[i * 3] = (Math.random() - 0.5) * box.x;
+            this.pos[i * 3 + 1] = Math.random() * box.y;
+            this.pos[i * 3 + 2] = (Math.random() - 0.5) * box.z;
+            this.seed[i] = Math.random() * 100;
+        }
+        this.t = 0;
+        this.intensity = 0;          // 0..1, eased toward the target
+        this.target = 0;
+        this.timer = 20 + Math.random() * 40;   // first one comes a little while in
+        this.left = 0;
+        this.enabled = true;
+        const geo = new THREE.BufferGeometry();
+        this.attr = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+        geo.setAttribute('position', this.attr);
+        this.points = new THREE.Points(geo, new THREE.PointsMaterial({
+            color: 0xffffff, size: 0.18, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false,
+        }));
+        this.points.frustumCulled = false;
+        this.points.visible = false;
+        scene.add(this.points);
+    }
+
+    setEnabled(on) { this.enabled = on; if (!on) { this.target = this.intensity = 0; this.points.visible = false; } }
+
+    // Start one now (also used by the F key and ?flurry).
+    start(seconds = 4 + Math.random() * 4) { this.left = seconds; this.target = 1; }
+
+    get active() { return this.intensity > 0.01; }
+
+    update(dt, camPos) {
+        if (!this.enabled) return;
+        // Schedule: count down to the next flurry, run it, then pick a new gap.
+        if (this.left > 0) {
+            this.left -= dt;
+            if (this.left <= 0) { this.target = 0; this.timer = 30 + Math.random() * 60; }
+        } else if ((this.timer -= dt) <= 0 && this.target === 0) this.start();
+        this.intensity += (this.target - this.intensity) * Math.min(1, dt * (this.target ? 1.2 : 0.9));
+        if (this.intensity < 0.01 && !this.target) { this.points.visible = false; return; }
+        this.points.visible = true;
+
+        this.t += dt;
+        const k = this.intensity;
+        const windX = 1.5 + k * 7, windZ = 0.5 + k * 2.5;
+        const { x: bx, y: by, z: bz } = this.box;
+        const c = camPos, p = this.pos, out = this.attr.array;
+        for (let i = 0; i < this.count; i++) {
+            const s = this.seed[i], j = i * 3;
+            p[j] += (windX + Math.sin(this.t * 1.3 + s) * 0.8) * dt;
+            p[j + 1] -= (1.6 + (s % 1) * 1.6) * dt;
+            p[j + 2] += (windZ + Math.cos(this.t * 1.1 + s) * 0.8) * dt;
+            const dx = p[j] - c.x, dy = p[j + 1] - (c.y - by * 0.35), dz = p[j + 2] - c.z;
+            if (dx > bx / 2) p[j] -= bx; else if (dx < -bx / 2) p[j] += bx;
+            if (dy < 0) p[j + 1] += by; else if (dy > by) p[j + 1] -= by;
+            if (dz > bz / 2) p[j + 2] -= bz; else if (dz < -bz / 2) p[j + 2] += bz;
+            out[j] = p[j]; out[j + 1] = p[j + 1]; out[j + 2] = p[j + 2];
+        }
+        this.attr.needsUpdate = true;
+        // Thicken as it builds: more flakes drawn, and more opaque.
+        this.points.geometry.setDrawRange(0, Math.max(1, Math.round(this.count * (0.15 + 0.85 * k))));
+        this.points.material.opacity = 0.85 * k;
+    }
+}

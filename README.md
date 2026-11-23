@@ -43,6 +43,8 @@ Ski patrol also doesn't allow parking on the run: if you stall out (say, after
 getting up from a crash on a flat or in a dip) and make no progress downhill
 for 8 seconds, they hike you back up to the top.
 
+Every so often (30-90 s apart) a snow flurry blows through for 4-8 seconds. `/?flurry` starts one right away.
+
 ## Controls
 
 | Key | On snow | In the air | On the rail |
@@ -53,7 +55,7 @@ for 8 seconds, they hike you back up to the top.
 | Space | Hold to load, release to ollie | | Release to pop off |
 | H / J / K / L | | Method / indy / stalefish / japan. Hold to tweak, switch keys to combo — **let go before you land** | |
 | Backspace | Restart | | |
-| C / V / M | Photo cam / retro pixels / mute | | |
+| C / V / M / F | Photo cam / retro pixels / mute / call a snow flurry | | |
 | G | Switch stance (start screen): goofy is default | | |
 
 The arrow keys also steer, if you prefer them.
