@@ -10,6 +10,8 @@ const MU = 0.05, MU_BRAKE = 0.5;
 const DRAG = 0.0036, DRAG_TUCK = 0.0024, DRAG_BRAKE = 0.007;
 const TURN_RATE = 1.8;
 const GRIP = 8;
+// Ollie pop speed (m/s off the snow): a quick tap to a fully loaded pop.
+const POP_MIN = 2.2, POP_RANGE = 1.8;
 const SPIN_RATE = Math.PI * 2 * 0.95;
 const FLIP_RATE = Math.PI * 2 * 0.8;
 const START_S = 10;
@@ -164,7 +166,7 @@ export class Player {
         // Ollie: hold to load, release to pop.
         if (input.jump) this.charge = Math.min(1, this.charge + h / 0.45);
         else if (this.charge > 0) {
-            const pop = (1.6 + 1.6 * this.charge) * eff.pop;
+            const pop = (POP_MIN + POP_RANGE * this.charge) * eff.pop;
             v.addScaledVector(n, pop);
             this.charge = 0;
             this.leaveGround(true);
@@ -448,7 +450,7 @@ export class Player {
 
         if (input.jump) this.charge = Math.min(1, this.charge + h / 0.45);
         else if (this.charge > 0) {
-            this.vel.y += (1.6 + 1.6 * this.charge) * eff.pop;
+            this.vel.y += (POP_MIN + POP_RANGE * this.charge) * eff.pop;
             this.charge = 0;
             this.exitRail(true);
         } else if (rail.t >= 1) {
