@@ -227,17 +227,34 @@ export class Sound {
         this.tone(t, 0.12, 0.7, 'sine', 170, 60);
     }
 
-    // vn = m/s into the slope. Clean landings slap, heavy ones crunch.
+    // vn = m/s into the slope. Layered like the real thing: the board slapping
+    // down, the snow compressing under it (fwump), a puff of spray, and a
+    // scatter of ice crunches. Harder landings are deeper and crunchier;
+    // sloppy ones add the edge scrubbing and the rider's grunt.
     land(vn, quality) {
         if (!this.ctx) return;
         const t = this.now, k = Math.min(1, vn / 14);
-        this.burst(t, 0.15 + k * 0.15, 0.6 + k * 0.5, 'lowpass', 2800 + k * 2000, 0.7, 300);
-        this.tone(t, 0.22, 0.45 + k * 0.4, 'sine', 120, 45);
-        if (quality === 'heavy') {
-            this.burst(t + 0.02, 0.3, 0.5, 'bandpass', 700, 1.5);
-            this.voice(t + 0.05, 0.25, 0.35, 160, 110, 'o');      // "oof"
-        } else if (quality === 'sketchy') {
+        const r = (a, b) => a + Math.random() * (b - a);
+        // Board deck slapping the snow: a tight knock plus a body thud.
+        this.burst(t, 0.05, 0.5 + k * 0.3, 'bandpass', r(900, 1300), 2);
+        this.tone(t, 0.07, 0.25 + k * 0.2, 'triangle', r(300, 360), 170);
+        this.tone(t, 0.2 + k * 0.2, 0.45 + k * 0.4, 'sine', 150, 45);
+        // Snow compressing: a dull "fwump" that dies away.
+        this.burst(t, 0.22 + k * 0.25, 0.55 + k * 0.45, 'lowpass', 1500 + k * 900, 0.8, 220);
+        // Spray thrown up: a soft sweep that lingers a beat after the impact.
+        this.burst(t + 0.02, 0.3 + k * 0.3, 0.22 + k * 0.3, 'bandpass', 3600, 0.8, 1300);
+        // Crunchy snow: a handful of tiny ice clicks, more of them on harder hits.
+        const clicks = 2 + Math.round(k * 7);
+        for (let i = 0; i < clicks; i++) this.burst(t + 0.015 + Math.random() * 0.16, 0.025, 0.12 + k * 0.15, 'highpass', r(2200, 4800), 1);
+        if (quality === 'sketchy') {
+            // Edge catching and scrubbing as it settles.
+            this.burst(t + 0.03, 0.28, 0.22, 'bandpass', 3000, 5, 1400);
             this.voice(t + 0.06, 0.18, 0.2, 180, 140, 'o');
+        } else if (quality === 'heavy') {
+            this.tone(t, 0.55, 0.55, 'sine', 75, 28);                  // the boom
+            this.burst(t + 0.02, 0.35, 0.5, 'bandpass', 700, 1.5);     // legs and board taking the hit
+            this.burst(t + 0.04, 0.2, 0.3, 'bandpass', 2400, 4, 900);  // board rattling
+            this.voice(t + 0.05, 0.25, 0.35, 160, 110, 'o');           // "oof"
         }
     }
 
