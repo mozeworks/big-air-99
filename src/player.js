@@ -167,6 +167,7 @@ export class Player {
         if (input.jump) this.charge = Math.min(1, this.charge + h / 0.45);
         else if (this.charge > 0) {
             const pop = (POP_MIN + POP_RANGE * this.charge) * eff.pop;
+            this.popPower = this.charge;
             v.addScaledVector(n, pop);
             this.charge = 0;
             this.leaveGround(true);
@@ -451,6 +452,7 @@ export class Player {
         if (input.jump) this.charge = Math.min(1, this.charge + h / 0.45);
         else if (this.charge > 0) {
             this.vel.y += (POP_MIN + POP_RANGE * this.charge) * eff.pop;
+            this.popPower = this.charge;
             this.charge = 0;
             this.exitRail(true);
         } else if (rail.t >= 1) {

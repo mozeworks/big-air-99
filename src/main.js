@@ -101,7 +101,7 @@ function game() {
     for (const ev of ['keydown', 'pointerdown']) addEventListener(ev, () => sound.unlock());
     const events = {
         onTakeoff(p) {
-            if (p.takeoff.popped) sound.pop();
+            if (p.takeoff.popped) sound.pop(p.popPower);
             const v = p.vel;
             if (p.takeoff.nearLip) {
                 spray.emit(p.pos, { x: v.x * 0.5, y: 2, z: v.z * 0.5 }, 70, 3, 3);

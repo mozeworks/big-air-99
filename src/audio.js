@@ -220,11 +220,26 @@ export class Sound {
 
     get now() { return this.ctx.currentTime; }
 
-    pop() {
+    // The ollie: the tail snapping off the snow. `power` 0..1 is how loaded
+    // the pop was. Layers: a woody knock, the deck flexing and ringing, snow
+    // popping loose, the leg push, and air whipping past as he leaves.
+    pop(power = 0.5) {
         if (!this.ctx) return;
-        const t = this.now;
-        this.burst(t, 0.1, 1.0, 'bandpass', 1600, 1.5);
-        this.tone(t, 0.12, 0.7, 'sine', 170, 60);
+        const t = this.now, k = Math.min(1, Math.max(0, power));
+        const L = 1.8, j = 0.92 + Math.random() * 0.16;                       // no two pops identical
+        // Knock: the tail cracking against the snow.
+        this.burst(t, 0.045, (0.6 + k * 0.3) * L, 'bandpass', 1500 * j, 2.2);
+        this.tone(t, 0.07, (0.35 + k * 0.2) * L, 'triangle', 280 * j, 110);
+        // The deck flexing and springing back: a short woody "bwoing".
+        this.tone(t + 0.01, 0.16 + k * 0.14, (0.14 + k * 0.1) * L, 'sine', 430 * j, 400 * j, 0.003);
+        this.tone(t + 0.01, 0.12 + k * 0.1, (0.07 + k * 0.06) * L, 'sine', 810 * j, 760 * j, 0.003);
+        // Snow popping loose under the tail.
+        this.burst(t + 0.005, 0.07, 0.35 * L, 'highpass', 2800 * j, 1);
+        for (let i = 0; i < 2 + Math.round(k * 3); i++) this.burst(t + 0.01 + Math.random() * 0.07, 0.02, 0.12 * L, 'highpass', 2500 + Math.random() * 2500, 1);
+        // Legs driving off the snow.
+        this.tone(t, 0.11, (0.35 + k * 0.25) * L, 'sine', 150 - k * 25, 55);
+        // Air whipping past as he rises: a quick upward swoosh.
+        this.burst(t + 0.03, 0.2 + k * 0.1, (0.14 + k * 0.16) * L, 'bandpass', 600, 1.1, 2600);
     }
 
     // vn = m/s into the slope. Layered like the real thing: the board slapping
