@@ -45,15 +45,21 @@ export class Sound {
         this.snow = this.loop('bandpass', 900, 0.8);
         // Wind: lowpassed noise.
         this.wind = this.loop('lowpass', 500, 0.7);
-        // Rail grind: narrow band of noise plus two metallic partials.
-        this.grind = this.loop('bandpass', 2400, 6);
-        this.grindTones = [1840, 2770].map(f => {
+        // Rail grind: steel on steel. Noise run through a bank of narrow
+        // resonances (the rail and the board edge ringing), a gritty chatter
+        // layer, a low rumble through the board, and a thin stick-slip screech.
+        this.grindBank = [1250, 2150, 3300, 5100].map((f, i) => ({ ...this.loop('bandpass', f, 14 + i * 4), f }));
+        this.grindGrit = this.loop('highpass', 3800, 0.7);
+        this.grindRumble = this.loop('lowpass', 260, 0.9);
+        this.screech = ['sawtooth', 'square'].map((type, i) => {
             const o = c.createOscillator();
-            o.type = 'square'; o.frequency.value = f;
+            o.type = type; o.frequency.value = 1900 + i * 37;
+            const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = 4;
             const g = c.createGain(); g.gain.value = 0;
-            o.connect(g).connect(this.master); o.start();
+            o.connect(f).connect(g).connect(this.master); o.start();
             return { o, g };
         });
+        this.grindPhase = 0;
     }
 
     loop(type, freq, q) {
@@ -94,9 +100,30 @@ export class Sound {
             700 + sp * 1600 + carve * 900 + brake * 1400);
         const air = p.state === 'air';
         this.set(this.wind, quiet ? 0 : Math.min(0.35, sp * sp * 0.25 + (air ? 0.1 : 0)), 300 + sp * 900);
-        const g = p.state === 'rail' && !quiet ? 0.35 : 0;
-        this.set(this.grind, g, 2400);
-        for (const t of this.grindTones) t.g.gain.setTargetAtTime(g * 0.04, this.ctx.currentTime, 0.04);
+        this.updateGrind(p, p.state === 'rail' && !quiet);
+    }
+
+    // Metal-on-metal grinding. Speed raises the pitch and brightness; the
+    // random per-frame gain jitter is what makes it a scrape instead of a tone.
+    updateGrind(p, on) {
+        const t = this.ctx.currentTime;
+        const sp = on ? Math.min(1, p.rail.speed / 18) : 0;
+        const bal = on ? Math.abs(p.rail.balance) : 0;           // scraping harder when you're off-balance
+        const level = on ? 0.5 + sp * 0.4 + bal * 0.3 : 0;
+        this.grindPhase += 0.016 * (3 + sp * 5);
+        this.grindBank.forEach((b, i) => {
+            const chatter = 0.45 + Math.random() * 0.9;
+            b.gain.gain.setTargetAtTime(level * (0.28 - i * 0.04) * chatter, t, 0.025);
+            b.filter.frequency.setTargetAtTime(b.f * (0.85 + sp * 0.5) * (1 + Math.sin(this.grindPhase + i * 1.7) * 0.04), t, 0.05);
+        });
+        this.grindGrit.gain.gain.setTargetAtTime(level * 0.1 * (0.3 + Math.random()), t, 0.02);
+        this.grindRumble.gain.gain.setTargetAtTime(level * 0.28 * (0.7 + Math.random() * 0.6), t, 0.04);
+        // Stick-slip screech: wavers in and out, a touch sharper when balance is shaky.
+        const slip = Math.max(0, Math.sin(this.grindPhase * 1.3) + Math.sin(this.grindPhase * 3.1 + 1) * 0.6);
+        this.screech.forEach((o, i) => {
+            o.g.gain.setTargetAtTime(on ? level * 0.012 * slip * (0.6 + Math.random() * 0.8) : 0, t, 0.03);
+            o.o.frequency.setTargetAtTime((1700 + sp * 1300 + bal * 400 + i * 41) * (1 + Math.sin(this.grindPhase * 2 + i) * 0.015), t, 0.04);
+        });
     }
 
     // ---------------------------------------------------------------- one-shots
@@ -192,9 +219,55 @@ export class Sound {
         notes.forEach((f, i) => this.tone(t + 0.15 + i * 0.07, 0.16, 0.12, 'square', f));
     }
 
+    // A ringing metal partial: sine with a slow decay.
+    ring(when, f, dur, gain) {
+        this.tone(when, dur, gain, 'sine', f, f * 0.995, 0.002);
+    }
+
+    // Landing on the rail: a sharp steel clank that rings, then the scrape takes over.
     railOn() {
         if (!this.ctx) return;
-        this.burst(this.now, 0.1, 0.5, 'highpass', 2000, 1);
+        const t = this.now;
+        this.burst(t, 0.07, 0.7, 'highpass', 2500, 1);
+        this.burst(t, 0.25, 0.35, 'bandpass', 1800, 6, 900);
+        [[930, 0.5], [1470, 0.4], [2310, 0.3], [3720, 0.2]].forEach(([f, d], i) => this.ring(t, f, d, 0.1 - i * 0.015));
+        this.tone(t, 0.12, 0.35, 'sine', 180, 70);                // the thud of the board dropping on it
+    }
+
+    // Coming off the rail: a swoosh of air, then a bright shwiiing as the steel rings out.
+    railOff() {
+        if (!this.ctx) return;
+        const t = this.now;
+        // Swoosh: air whipping past, rising and falling.
+        const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+        const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.6;
+        f.frequency.setValueAtTime(500, t);
+        f.frequency.exponentialRampToValueAtTime(4200, t + 0.3);
+        f.frequency.exponentialRampToValueAtTime(1500, t + 0.55);
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.5, t + 0.16);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+        src.connect(f).connect(g).connect(this.master);
+        src.start(t, Math.random()); src.stop(t + 0.65);
+        // Shwiiing: the grind whistles upward and dies away with a shimmering ring.
+        const o = this.ctx.createOscillator(); o.type = 'sawtooth';
+        o.frequency.setValueAtTime(900, t);
+        o.frequency.exponentialRampToValueAtTime(4800, t + 0.28);
+        o.frequency.exponentialRampToValueAtTime(3600, t + 0.8);
+        const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 5;
+        bp.frequency.setValueAtTime(1500, t);
+        bp.frequency.exponentialRampToValueAtTime(5200, t + 0.28);
+        const lfo = this.ctx.createOscillator(); lfo.frequency.value = 34;
+        const lfoGain = this.ctx.createGain(); lfoGain.gain.value = 120;
+        lfo.connect(lfoGain).connect(o.frequency);
+        const og = this.ctx.createGain();
+        og.gain.setValueAtTime(0.0001, t);
+        og.gain.exponentialRampToValueAtTime(0.09, t + 0.05);
+        og.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+        o.connect(bp).connect(og).connect(this.master);
+        o.start(t); lfo.start(t); o.stop(t + 0.9); lfo.stop(t + 0.9);
+        [2300, 3100, 4700].forEach((fr, i) => this.ring(t + 0.1 + i * 0.03, fr, 0.7, 0.045));
     }
 
     // severity 0..1; hospital = the big one.

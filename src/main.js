@@ -138,6 +138,7 @@ function game() {
             sound.railOn();
         },
         onRail(p, rail) {
+            sound.railOff();
             sound.trick(rail.points);
             runScore += rail.points;
             showTrick({ name: rail.name, points: rail.points }, 'rail');
