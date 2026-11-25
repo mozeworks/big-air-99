@@ -12,6 +12,7 @@ const HL = 0, HR = 1, SL = 2, SR = 3, HD = 4, FL = 5, FR = 6, AL = 7, AR = 8, N 
 const RADIUS = [0.12, 0.12, 0.1, 0.1, 0.13, 0.12, 0.12, 0.07, 0.07];
 const STANCE = 0.27, BOARD_HALF = 0.56, FOOT_UP = 0.12;
 const ARM = 0.62, LEG = 0.88;
+const NECK_BEND = 50 * Math.PI / 180;
 const RIGID = 0, MAX = 1, MIN = 2;
 const CONSTRAINTS = [
     // Pelvis + shoulders: one stiff plate (the spine doesn't fold in half).
@@ -182,6 +183,13 @@ export class Ragdoll {
 
         // Head orientation: its up axis points from the shoulders to the skull.
         const hUp = new THREE.Vector3().subVectors(L[HD], shMid).normalize();
+        // A neck only bends so far, however hard the head is thrown.
+        const bend = up.angleTo(hUp);
+        if (bend > NECK_BEND) {
+            const axis = this._c.crossVectors(up, hUp);
+            if (axis.lengthSq() < 1e-6) axis.copy(lat);
+            hUp.copy(up).applyAxisAngle(axis.normalize(), NECK_BEND);
+        }
         const hLat = lat.clone().addScaledVector(hUp, -lat.dot(hUp)).normalize();
         const hFwd = new THREE.Vector3().crossVectors(hUp, hLat);
         this._setQ(pose.headQ, this.lastQ.head, hFwd, hUp, hLat);

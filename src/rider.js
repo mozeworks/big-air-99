@@ -282,6 +282,9 @@ export class Rider {
         this.head.add(this.gogglesSet);
         this.gear = { beanie, goggles: this.gogglesSet, lGlove: this.lGlove, rGlove: this.rGlove, board: this.board };
         this.rig.add(this.head);
+        // Bridges the collar and the skull so the head never floats.
+        this.neck = limbMesh(0.05, 0.062, COLORS.skin, 7);
+        this.rig.add(this.neck);
 
         for (const o of this.rig.children) o.traverse(m => { m.castShadow = false; });
         this.goofy = false;
@@ -364,6 +367,9 @@ export class Rider {
             this._e.set(p.head[0], p.head[1], p.head[2], 'YZX');
             this.head.quaternion.copy(tq).multiply(this._q.setFromEuler(this._e));
         }
+
+        // Neck: from just inside the top of the jacket to the middle of the head.
+        placeLimb(this.neck, tmp.set(0, SPINE - 0.03, 0).applyQuaternion(tq).add(hip), this.head.position);
 
         // Arms. Left (front) hand can be pulled onto the board's heel edge.
         const flail = this.flail;
